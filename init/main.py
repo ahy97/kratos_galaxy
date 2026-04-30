@@ -9,13 +9,13 @@ import configparser
 import copy
 from background import *
 from FDM import *
-from base import *
 from init import *
-from base.data_field import *
-from base.grid import *
-from base.profile_base import *
-from base.source import *
-from base.unit import *
+sys.path.insert( 0, "../base" )
+from data_field import *
+from grid import *
+from profile_base import *
+from source import *
+from unit import *
 
 import numpy      as  np
 import matplotlib.pyplot as plt

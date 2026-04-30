@@ -1,4 +1,4 @@
-from base.data_field import data_field
+from data_field import data_field
 import configparser
 
 class units:
@@ -47,7 +47,16 @@ class units:
     @property
     def G_code( self ):
         return data_field( self.G / ( self.l0**3 / self.t0**2 / self.m0 ), [ -1, 3, -2,  0 ] )
-    
+    @property
+    def l0( self ):
+        return self.l0
+    @property
+    def t0( self ):
+        return self.t0
+    @property
+    def rho0( self ):
+        return self.rho0
+
     def read_config( config ):
         units.config = config
         units.rho0 = float( units.config[ 'unit' ][ 'rho0'] )

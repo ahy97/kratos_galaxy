@@ -1,10 +1,12 @@
 from numpy      import array, byte, meshgrid, exp, ones_like, zeros_like, cosh, tanh
 import numpy as np
+import sys
 from scipy.interpolate import LinearNDInterpolator
-from base.unit import units
-from base.data_field import data_field as df
-from base.grid       import grid
-from base.profile_base import profile_base
+sys.path.insert( 0, "../base" )
+from unit import units
+from data_field import data_field as df
+from grid       import grid
+from profile_base import profile_base
 from FDM import background_potential
 from background import background, background_source
 import sys
