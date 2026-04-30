@@ -1,7 +1,9 @@
 import numpy as np
-from base.unit import units
-from base.data_field import data_field as df
-from base.source import source 
+import sys
+sys.path.insert( 0, "../base" )
+from unit import units
+from data_field import data_field as df
+from source import source 
 from inspect import signature
 from scipy.integrate import tplquad, dblquad
 

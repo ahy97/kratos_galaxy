@@ -1,10 +1,12 @@
 from numpy      import array, byte, meshgrid, exp, ones_like, zeros_like, cosh, tanh
 import numpy as np
+import sys
 from scipy.interpolate import LinearNDInterpolator
-from base.unit import units
-from base.data_field import data_field as df
-from base.grid       import grid
-from base.profile_base import profile_base
+sys.path.insert( 0, "../base" )
+from unit import units
+from data_field import data_field as df
+from grid       import grid
+from profile_base import profile_base
 from FDM import background_potential
 from background import background, background_source
 import sys
@@ -138,12 +140,10 @@ class profile( profile_base ):
     
     def calc_densprof( self ):
         profs = []
-        self.coord_conv( "cyl" )
         for i, j in enumerate( self.flags ):
-            profs.append( self.rho( self.mesh[ i ], j, *self.scale_lengths[ i ] ) )
+            profs.append( self.rho( self.cylgrid.mesh[ i ], j, *self.scale_lengths[ i ] ) )
         res = self.rhobase * np.prod( np.array( profs ), axis=0 )
-        self.coord_revert( )
-        return res #self.rhobase * np.prod( np.array( profs ), axis=0 )
+        return self.cylgrid.interpolate_data( self, res, fill_val=0 ) #self.rhobase * np.prod( np.array( profs ), axis=0 )
     
     def calc_velprof( self ):
         self.background_potential.coord_transform( self.cylgrid, fill_val=0 )
@@ -230,7 +230,7 @@ class profile( profile_base ):
             dphizgas_dz = dphizgas_dz + (l1 + 2. * l2 + 2. * l3 + l4) / 6.
         
         #Interpolate to desired grid
-        exp_term = self.cylgrid.interpolate_data( self, potz + phizgas, fill_val=-np.inf )
+        exp_term = potz + phizgas #self.cylgrid.interpolate_data( self, potz + phizgas, fill_val=-np.inf )
         return np.exp( - exp_term / self.cs2 )
             
     

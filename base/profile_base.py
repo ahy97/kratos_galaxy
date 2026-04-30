@@ -1,4 +1,4 @@
-from base.grid import grid
+from grid import grid
 import numpy as np
 
 class profile_base( grid ):

@@ -1,7 +1,9 @@
 import scipy.sparse as sparse
-from base.unit import units
-from base.data_field import data_field as df
-from base.grid import grid
+import sys
+sys.path.insert( 0, "../base" )
+from unit import units
+from data_field import data_field as df
+from grid import grid
 from background import background_source
 import numpy as np
 import matplotlib.pyplot as plt
