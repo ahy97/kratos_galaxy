@@ -138,10 +138,12 @@ class profile( profile_base ):
     
     def calc_densprof( self ):
         profs = []
+        self.coord_conv( "cyl" )
         for i, j in enumerate( self.flags ):
-            profs.append( self.rho( self.cylgrid.mesh[ i ], j, *self.scale_lengths[ i ] ) )
+            profs.append( self.rho( self.mesh[ i ], j, *self.scale_lengths[ i ] ) )
         res = self.rhobase * np.prod( np.array( profs ), axis=0 )
-        return self.cylgrid.interpolate_data( self, res, fill_val=0 ) #self.rhobase * np.prod( np.array( profs ), axis=0 )
+        self.coord_revert( )
+        return res #self.rhobase * np.prod( np.array( profs ), axis=0 )
     
     def calc_velprof( self ):
         self.background_potential.coord_transform( self.cylgrid, fill_val=0 )
@@ -228,7 +230,7 @@ class profile( profile_base ):
             dphizgas_dz = dphizgas_dz + (l1 + 2. * l2 + 2. * l3 + l4) / 6.
         
         #Interpolate to desired grid
-        exp_term = potz + phizgas #self.cylgrid.interpolate_data( self, potz + phizgas, fill_val=-np.inf )
+        exp_term = self.cylgrid.interpolate_data( self, potz + phizgas, fill_val=-np.inf )
         return np.exp( - exp_term / self.cs2 )
             
     
