@@ -55,8 +55,8 @@ rearth = units.rearth      #6.37814e8;     # Earth Radius
 
 ########################################
 # Basic dimension recoverage
-t0     = units.l0     
-l0     = units.t0     
+t0     = units.t0     
+l0     = units.l0     
 rho0   = units.rho0   
 m0     = units.m0     
 v0     = units.v0     

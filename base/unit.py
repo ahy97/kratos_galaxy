@@ -1,6 +1,15 @@
 from data_field import data_field
 import configparser
 
+class classproperty:
+    """Descriptor that works as both a property (on instances) and a classmethod (on the class)."""
+    def __init__(self, func):
+        self.func = func
+
+    def __get__(self, obj, cls):
+        # Works whether called on an instance or the class directly
+        return self.func(cls)
+
 class units:
     """
     The units class contains physical and astrophysical constants. It provides conversion factors
@@ -35,28 +44,44 @@ class units:
     l0   = 3.0857e18
     t0   = 1e6 * 365. * 86400
 
-    @property
-    def m0( self ):
-        return self.rho0 * self.l0**3
-    @property
-    def v0( self ):
-        return self.l0 / self.t0
-    @property
-    def sigma0( self ):
-        return self.rho0 * self.l0
-    @property
-    def G_code( self ):
-        return data_field( self.G / ( self.l0**3 / self.t0**2 / self.m0 ), [ -1, 3, -2,  0 ] )
-    @property
-    def l0( self ):
-        return self.l0
-    @property
-    def t0( self ):
-        return self.t0
-    @property
-    def rho0( self ):
-        return self.rho0
+    #@property
+    #def m0( self ):
+    #    return self.rho0 * self.l0**3
+    #@property
+    #def v0( self ):
+    #    return self.l0 / self.t0
+    #@property
+    #def sigma0( self ):
+    #    return self.rho0 * self.l0
+    #
+    #@classmethod
+    #def m0( units ):
+    #    return units.rho0 * units.l0**3
+    #@classmethod
+    #def v0( units ):
+    #    return units.l0 / units.t0
+    #@classmethod
+    #def sigma0( units ):
+    #    return units.rho0 * units.l0
+    #
+    #@classmethod
+    #def G_code( units):
+    #    return data_field( units.G / ( units.l0**3 / units.t0**2 / units.m0 ), [ -1, 3, -2,  0 ] )
+    @classproperty
+    def m0(cls):
+        return cls.rho0 * cls.l0**3
 
+    @classproperty
+    def v0(cls):
+        return cls.l0 / cls.t0
+
+    @classproperty
+    def sigma0(cls):
+        return cls.rho0 * cls.l0
+
+    @classproperty
+    def G_code(cls):
+        return data_field(cls.G / (cls.l0**3 / cls.t0**2 / cls.m0), [-1, 3, -2, 0])
     def read_config( config ):
         units.config = config
         units.rho0 = float( units.config[ 'unit' ][ 'rho0'] )
