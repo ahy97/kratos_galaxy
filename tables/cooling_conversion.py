@@ -1,9 +1,11 @@
 import numpy as np
 import re
+import sys
 sys.path.append( "../base" )
 from unit import units
 from scipy.interpolate import LinearNDInterpolator
 from elements import elements
+from configparser import ConfigParser
 
 elements_atomic_numbers = elements.elements_atomic_numbers
 elements_atomic_weights = elements.elements_atomic_weights
@@ -82,7 +84,7 @@ def get_mu( ovr_data, ion_list, abn_data, param_grid ):
         mu_list.append( mu_num / mu_denom )
     return np.array( mu_list ), np.array(free_edens_list), np.array(H_ion_frac)
 
-def load_cloudy( dirname, fname, gamma=5/3 )
+def load_cloudy( dir, fname, gamma=5/3 ):
     """
     Loads CLOUDY output data into python. Assumed dimensions are T, n_H and metallicity.
     """
@@ -129,12 +131,80 @@ def load_cloudy( dirname, fname, gamma=5/3 )
     
     return { "coolrate" : crate, "heatrate" : hrate,
              "lg_mu_cgs" : lg_mu_cgs, "edens": edens_list,
-             "h_ion": h_ion_list }
+             "h_ion": h_ion_list, "params_coord": params_coord }
 
-def write_table
+def write_table_cloudy( cloudy_data, interp_range, filename, **kwargs ):
+    params_coord = cloudy_data[ "params_coord" ]
+    crate        = cloudy_data[ "coolrate"     ]
+    hrate        = cloudy_data[ "heatrate"     ]
+    lg_mu_cgs    = cloudy_data[ "lg_mu_cgs"    ]
+    #edens_list   = cloudy_data[ "edens"        ]
+    #h_ion_list   = cloudy_data[ "h_ion"        ]
+
     cool_int      = LinearNDInterpolator( params_coord, crate      )
     heat_int      = LinearNDInterpolator( params_coord, hrate      )
     lg_mu_cgs_int = LinearNDInterpolator( params_coord, lg_mu_cgs  )
-    edens_int     = LinearNDInterpolator( params_coord, edens_list )
-    hion_int      = LinearNDInterpolator( params_coord, h_ion_list )
+    #edens_int     = LinearNDInterpolator( params_coord, edens_list )
+    #hion_int      = LinearNDInterpolator( params_coord, h_ion_list )
+
+    rect_lg_met_const = interp_range[ 0 ]
+    rect_lg_rho_const = interp_range[ 1 ]
+    rect_lg_eg_const  = interp_range[ 2 ]
+
+    Met,Rho,Eg  = np.meshgrid( rect_lg_met_const, rect_lg_rho_const, rect_lg_eg_const, indexing='ij' )
+    rect_coord  = np.array([Eg.flatten(),
+                            Rho.flatten(),                        
+                            Met.flatten(),
+                            ]).transpose()
+    if len( rect_coord ) >= 14400:
+        print( f"Warning: interpolation table size may exceed constant memory limit. Try to keep the number of floats below 14400" )
+    
+    reduce_mu_interp = kwargs.get( "reduce_mu_interp", True )
+    if reduce_mu_interp:
+        rho_rep = kwargs.get( "rho_rep", 1.6e-24 )
+        met_rep = kwargs.get( "met_rep", 1 )
+        rhoind = np.argmin( np.abs( 10**rect_lg_rho_const - 1 ) - rho_rep )
+        metind = np.argmin( np.abs( 10**rect_lg_met_const - 1 ) - met_rep )
+        mu_coord_1D = np.array([rect_lg_eg_const,
+                        np.ones( rect_lg_eg_const.shape ) * rect_lg_rho_const[ rhoind ],                        
+                        np.ones( rect_lg_eg_const.shape ) * rect_lg_met_const[ metind ],
+                        ]).transpose()
+        lg_mu_cgs_rect = lg_mu_cgs_int ( mu_coord_1D )
+
+    else:
+        lg_mu_cgs_rect = lg_mu_cgs_int ( rect_coord )
+    lg_cool_rect   = np.log10( cool_int      ( rect_coord ) )
+    lg_heat_rect   = np.log10( heat_int      ( rect_coord ) )
+    #lg_edens_rect  = edens_int     ( rect_coord )
+    #lg_hion_rect   = hion_int      ( rect_coord )
+    lg_lam = lg_cool_rect
+    lg_gam = lg_heat_rect
+
+    cfg = ConfigParser(  );
+    cfg.optionxform = str;
+
+    cfg[ 'cooling' ] = \
+        { 'lg_z'   : ' '.join( [ '%0.4f' % s for s in np.unique( rect_coord[ :,2 ] ) ] ),
+          'lg_e'   : ' '.join( [ '%0.4f' % s for s in np.unique( rect_coord[ :,0 ] ) ] ),
+          'lg_rho' : ' '.join( [ '%0.4f' % s for s in np.unique( rect_coord[ :,1 ] ) ] ),
+          'lg_lam' : ' '.join( [ '%0.4f' % s for s in lg_lam ] ),
+          'lg_gam' : ' '.join( [ '%0.4f' % s for s in lg_gam ] ),
+          'lg_mu_cgs' : ' '.join( [ '%0.4f' % s for s in lg_mu_cgs_rect ] )  
+        }
+    with open( filename, 'w' ) as f:
+        cfg.write( f );
+    return
+
+#dat = load_cloudy( "../../cloudyoutputs/production", "cmz_1_14.5_22" )
+#params_coord = dat[ "params_coord" ]
+#rho_p = params_coord[ :,1 ]
+#eg_p  = params_coord[ :,0 ]
+#met_p = params_coord[ :,2 ]
+#met_inds = [ 4, 6, 8, 11 ]
+#interp_range = [ met_p[ met_inds ],
+#                 np.linspace( np.min( rho_p ) + 2, 
+#                              np.max( rho_p ) - 2, 60 ),
+#                 np.linspace( np.min( eg_p ) + 1.1, 
+#                              np.max( eg_p ) - 0.75, 60 ) ]
+#write_table_cloudy( dat, interp_range, "cooling_test.dat", reduce_mu_interp=True, rho_rep=1.6e-24, met_rep=1 )
 
