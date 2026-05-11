@@ -6,6 +6,7 @@ from unit import units
 from scipy.interpolate import LinearNDInterpolator
 from elements import elements
 from configparser import ConfigParser
+import pickle
 
 elements_atomic_numbers = elements.elements_atomic_numbers
 elements_atomic_weights = elements.elements_atomic_weights
@@ -84,7 +85,7 @@ def get_mu( ovr_data, ion_list, abn_data, param_grid ):
         mu_list.append( mu_num / mu_denom )
     return np.array( mu_list ), np.array(free_edens_list), np.array(H_ion_frac)
 
-def load_cloudy( dir, fname, gamma=5/3 ):
+def load_cloudy( dir, fname, gamma=5/3, save_path=None ):#"obj/cloudy_data.pkl" ):
     """
     Loads CLOUDY output data into python. Assumed dimensions are T, n_H and metallicity.
     """
@@ -128,24 +129,45 @@ def load_cloudy( dir, fname, gamma=5/3 ):
     hrate = (datacoolrate[:,0])/((params_coord[:,1])**2)
 
     params_coord[:,(0,1)] = np.log10( params_coord[:,(0,1)] )
-    
-    return { "coolrate" : crate, "heatrate" : hrate,
-             "lg_mu_cgs" : lg_mu_cgs, "edens": edens_list,
-             "h_ion": h_ion_list, "params_coord": params_coord }
+    dat = { "coolrate" : crate, "heatrate" : hrate,
+            "lg_mu_cgs" : lg_mu_cgs, "edens": edens_list,
+            "h_ion": h_ion_list, "params_coord": params_coord }
+    if save_path is not None:
+        print( f"Writing cloudy data to {save_path}" )
+        with open( save_path, 'wb' ) as f:
+            pickle.dump( dat, f )
 
-def write_table_cloudy( cloudy_data, interp_range, filename, **kwargs ):
+    return dat
+
+def make_interpolators( cloudy_data, save_path=None ):
     params_coord = cloudy_data[ "params_coord" ]
     crate        = cloudy_data[ "coolrate"     ]
     hrate        = cloudy_data[ "heatrate"     ]
     lg_mu_cgs    = cloudy_data[ "lg_mu_cgs"    ]
-    #edens_list   = cloudy_data[ "edens"        ]
-    #h_ion_list   = cloudy_data[ "h_ion"        ]
 
     cool_int      = LinearNDInterpolator( params_coord, crate      )
     heat_int      = LinearNDInterpolator( params_coord, hrate      )
     lg_mu_cgs_int = LinearNDInterpolator( params_coord, lg_mu_cgs  )
-    #edens_int     = LinearNDInterpolator( params_coord, edens_list )
-    #hion_int      = LinearNDInterpolator( params_coord, h_ion_list )
+
+    int_dat = { "cool_int": cool_int, "heat_int" : heat_int,
+                "lg_mu_cgs_int" : lg_mu_cgs_int }
+
+    if save_path is not None:
+        print( f"Writing interpolators to {save_path}" )
+        with open( save_path, 'wb' ) as f:
+            pickle.dump( int_dat, f )
+    return int_dat
+
+def write_table_cloudy( cloudy_data, int_data, interp_range, filename, **kwargs ):
+
+    params_coord = cloudy_data[ "params_coord" ]
+    crate        = cloudy_data[ "coolrate"     ]
+    hrate        = cloudy_data[ "heatrate"     ]
+    lg_mu_cgs    = cloudy_data[ "lg_mu_cgs"    ]
+    
+    cool_int      = int_data[ "cool_int" ]
+    heat_int      = int_data[ "heat_int" ]
+    lg_mu_cgs_int = int_data[ "lg_mu_cgs_int" ]
 
     rect_lg_met_const = interp_range[ 0 ]
     rect_lg_rho_const = interp_range[ 1 ]
@@ -175,8 +197,7 @@ def write_table_cloudy( cloudy_data, interp_range, filename, **kwargs ):
         lg_mu_cgs_rect = lg_mu_cgs_int ( rect_coord )
     lg_cool_rect   = np.log10( cool_int      ( rect_coord ) )
     lg_heat_rect   = np.log10( heat_int      ( rect_coord ) )
-    #lg_edens_rect  = edens_int     ( rect_coord )
-    #lg_hion_rect   = hion_int      ( rect_coord )
+
     lg_lam = lg_cool_rect
     lg_gam = lg_heat_rect
 

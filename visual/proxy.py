@@ -10,12 +10,16 @@ import pyxsim
 sys.path.append( os.getenv("KRATOS_VISUAL_DIR") )
 sys.path.append(os.path.join(os.path.dirname(__file__), "../base"))
 sys.path.append(os.path.join(os.path.dirname(__file__), "../init"))
+sys.path.append(os.path.join(os.path.dirname(__file__), "../tables"))
 from hydro_data_gal import *
 from yt_kratos import *
 from init import gen_profiles_bin
 from   hydro_data import get_dd, get_last_dd, enroll_mesh_tree
 import glob
 import numpy      as  np
+from utils import *
+from cooling_conversion import *
+from SB99_conversion import *
 np.set_printoptions(edgeitems=3)
 np.core.arrayprint._line_width = 30
 

@@ -51,7 +51,7 @@ profile_flags  = disc exp #zsolve #profiles along each dimension
                        #options: disc, exp, gauss, uniform, sech2, zsolve
                        #zsolve only applies for vertical
 
-ICname   = ../init/init_script.bin
+ICname   = ../outputs/init_cond/cmz_init.bin
 
 [zsolve] #axisymmetry assumed, always using cylindrical coordinates
 rcut    = 2e4
