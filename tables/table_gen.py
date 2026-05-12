@@ -19,7 +19,7 @@ if __name__ == "__main__":
     cloudy_file = config.get( "cooling", "fname"   )
     cloudy_data_path = config.get( "cooling", "data_path", fallback="cloudy_data.pkl" )
     cloudy_int_path  = config.get( "cooling", "int_path" , fallback="int_data.pkl" )
-    regen       = bool( int( config.get( "cooling", "regen", fallback=False ) ) )
+    regen       = bool( int( config.get( "cooling", "regen", fallback=0 ) ) )
 
     if regen:
         print( "Purging existing obj files" )
@@ -29,7 +29,7 @@ if __name__ == "__main__":
             os.remove( i )
 
     try:
-        with open( cloudy_data_path, 'rb' ) as f:
+        with open( f"obj/{cloudy_data_path}", 'rb' ) as f:
             dat = pickle.load( f )
         print( f"Loaded existing CLOUDY data from directory: {cloudy_data_path}" )
     except FileNotFoundError:
@@ -37,13 +37,19 @@ if __name__ == "__main__":
         dat = cool.load_cloudy( cloudy_dir, cloudy_file, save_path=cloudy_data_path )
 
     try:
-        with open( cloudy_int_path, 'rb' ) as f:
+        with open( f"obj/{cloudy_int_path}", 'rb' ) as f:
             int_dat = pickle.load( f )
         print( f"Loaded existing interpolators from directory: {cloudy_int_path}" )
     except FileNotFoundError:
         print( f"Existing interpolators not found. Generating interpolators from CLOUDY data" )
         int_dat = cool.make_interpolators( dat, save_path=cloudy_int_path )
 
+    #met_range_input = bool( int( config.get( "cooling", "met_range_input", fallback=0 ) ) )
+    #if met_range_input:
+    print( f"Existing metallicity grid: { np.unique( dat[ 'params_coord' ][ :,2 ] ) }")
+    #    print( f"Input desired array indices" )
+    #    met_idx = input( )
+    #    print( met_idx )
     interp_range = []
     for prefix, param in zip( [ "eg", "rho", "met" ], dat[ 'params_coord' ].T ):
         ranges = config.get('cooling',f'{prefix}_interp_range').split( )

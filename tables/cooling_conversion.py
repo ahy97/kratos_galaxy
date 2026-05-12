@@ -108,6 +108,7 @@ def load_cloudy( dir, fname, gamma=5/3, save_path=None ):#"obj/cloudy_data.pkl" 
     datacoolrate = datacoolrate[uniqueinds]
 
     Zsol = np.array( list( elements_solar_abundance.values( ) ) )
+    Zsol *= atomic_weights
     lgZsol = np.log10( np.sum(Zsol[2:])/np.sum(Zsol) )
     Z_Zsol = met_grid - lgZsol
 
