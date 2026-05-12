@@ -26,7 +26,6 @@ class gen_profiles_bin( binary_io ):
         #
         self.cache( prefix + '_coord', coord_type );
         self.cache( prefix + '_n_pts',      n_pts );
-        print( n_pts )
         for a in range( len( n_pts ) ):
             self.cache( prefix + '_x_%d' % a, coords[ a ] );
         #
@@ -125,7 +124,14 @@ class profile( profile_base ):
 
         self.densprof = self.calc_densprof( )
         self.velprof  = self.calc_velprof( )
-        
+
+        self.metdisc      = kwargs.get( "metdisc"  , float( self.config.get( 'IC_hydro', "metdisc"  , fallback=3  ) ) )
+        self.metcgm       = kwargs.get( "metcgm"   , float( self.config.get( 'IC_hydro', "metcgm"   , fallback=0.1  ) ) )
+        self.metzcut      = kwargs.get( "metzcut"  , float( self.config.get( 'IC_hydro', "metzcut"  , fallback=600  ) ) )
+        self.metzcut      = df( self.metzcut, "l" )
+
+        self.metprof = self.calc_metprof( )
+
         return 
     
     def zsolve_init( self, **kwargs ):
@@ -159,7 +165,12 @@ class profile( profile_base ):
         velsq[ np.isnan( velsq.data ) ] = 0
         return self.cylgrid.interpolate_data( self, np.sqrt( velsq ), fill_val=0 )
         
-        
+    def calc_metprof( self ):
+        metprof = self.metdisc * np.ones( self.densprof.shape )
+        self.coord_conv( "cyl" )
+        metprof[ self.mesh[ 1 ] > self.metzcut ] = self.metcgm
+        self.coord_revert( )
+        return metprof
 
     def rho( self, x, flag, *args ):
         #If you want another analytic profile
@@ -244,15 +255,15 @@ class IC( gen_profiles_bin ):
         grid_cgs = [ i.to_cgs( ) for i in profile.grid ]
         self.enroll( [ lambda *args : profile.densprof.to_cgs( ), 
                        lambda *args : profile.densprof.to_cgs( ) * profile.cs2.to_cgs( ),
-                       lambda *args : profile.velprof.to_cgs( ), ],
+                       lambda *args : profile.velprof.to_cgs( ), 
+                       lambda *args : profile.metprof ],
                        [ i.data for i in grid_cgs ], 'hydro', 
-                       field_names = [ 'rho', 'pre', 'vel' ] )
+                       field_names = [ 'rho', 'pre', 'vel', 'met' ] )
         
         if kwargs.get( "use_background", True ):
             bg2d = background_source( )
             bg3d = background_source( )
             for source_key, source in profile.background_potential.background.components.items():
-                print( source_key )
                 if source.dim == 2:
                     bg2d  = bg2d + source
                 elif source.dim == 3:

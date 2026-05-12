@@ -47,7 +47,7 @@ M_bh        = 4e6    #units of Msol
 coord    = sph # cart = cartesian   ( x, y, z )
                # cyl  = cylindrical ( r, z, phi )
                # sph  = spherical   ( r, theta, phi )
-profile_flags  = disc exp #zsolve #profiles along each dimension
+profile_flags  = disc zsolve #zsolve #profiles along each dimension
                        #options: disc, exp, gauss, uniform, sech2, zsolve
                        #zsolve only applies for vertical
 
@@ -61,6 +61,9 @@ zcut    = 2e4
 mu      = 1.26
 Tdisc   = 1e4   #units of Kelvin
 rhobase = 6     #units of rho0
+metdisc = 3     #units of Z/Zsol
+metcgm  = 0.1   #units of Z/Zsol
+metzcut = 100   #units of l0
 
 
 
