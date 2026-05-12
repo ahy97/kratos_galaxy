@@ -134,7 +134,7 @@ def load_cloudy( dir, fname, gamma=5/3, save_path=None ):#"obj/cloudy_data.pkl" 
             "h_ion": h_ion_list, "params_coord": params_coord }
     if save_path is not None:
         print( f"Writing cloudy data to {save_path}" )
-        with open( save_path, 'wb' ) as f:
+        with open( f"obj/{save_path}", 'wb' ) as f:
             pickle.dump( dat, f )
 
     return dat
@@ -154,7 +154,7 @@ def make_interpolators( cloudy_data, save_path=None ):
 
     if save_path is not None:
         print( f"Writing interpolators to {save_path}" )
-        with open( save_path, 'wb' ) as f:
+        with open( f"obj/{save_path}", 'wb' ) as f:
             pickle.dump( int_dat, f )
     return int_dat
 

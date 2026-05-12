@@ -17,11 +17,13 @@ import os
 sys.path.append( os.getenv("KRATOS_VISUAL_DIR") )
 sys.path.append( "../base" )
 from unit import units
-from hydro_data_gal import galaxy_data
+from hydro_data_gal import galaxy_data, enroll_T
 from hydro_data import get_dd, get_last_dd, enroll_mesh_tree
 import numpy as np
 from numpy import all
 from slice_plot import slice, recognize_vec
+from blk_func import *
+from par_func import *
 
 ############################################################
 # Handy functions
@@ -221,82 +223,8 @@ def time_evo( dirname, outputnames, **kwargs ): #max_out, data_funcs, data_names
             
     return output_data
 
-def f_par_SFR( d, **kwargs ):
-    x,   y,  z = d.data[ 'particle_x' ].T;
-    sfr        = d.data[ 'particle_sfr' ].T;
-    R = np.sqrt( x**2 + y**2 )
-    R_out = kwargs.get( "R_out", 1e32 )
-    Z_out = kwargs.get( "R_out", 1e32 )
-    return np.sum( sfr[ ( R < R_out ) & ( np.abs( z ) < Z_out ) ] ) / units.t0 * units.m0 / units.modot * units.yr 
 
-def f_par_Mstar( d, **kwargs ):
-    x,   y,  z = d.data[ 'particle_x' ].T;
-    R = np.sqrt( x**2 + y**2 )
-    mstar      = d.data[ 'particle_mstar'].T
-    R_out = kwargs.get( "R_out", 1e32 )
-    Z_out = kwargs.get( "R_out", 1e32 )
-    return np.sum( mstar[ ( R < R_out ) & ( np.abs( z ) < Z_out ) ] ) * ( units.m0 / units.modot )
 
-def f_par_Nsne( d, **kwargs ):
-    x,   y,  z = d.data[ 'particle_x' ].T;
-    R = np.sqrt( x**2 + y**2 )
-    Nsne       = d.data[ 'particle_Nsne' ].T
-    R_out = kwargs.get( "R_out", 1e32 )
-    Z_out = kwargs.get( "R_out", 1e32 )
-    return np.sum( Nsne[ ( R < R_out ) & ( np.abs( z ) < Z_out ) ] ) ;
-
-def f_par_Mgas( d, **kwargs ):
-    x,   y,  z = d.data[ 'particle_x' ].T;
-    R = np.sqrt( x**2 + y**2 )
-    m          = d.data[ 'particle_m' ].T;
-    mstar      = d.data[ 'particle_mstar'].T
-    R_out = kwargs.get( "R_out", 1e32 )
-    Z_out = kwargs.get( "R_out", 1e32 )
-    return np.sum( ( m - mstar )[ ( R < R_out ) & ( np.abs( z ) < Z_out ) ] ) * ( units.m0 / units.modot )
-
-def bf_hyd_cmzmass( b, bd, **kwargs ):
-    Xb, Yb, Zb = np.meshgrid( bd['x_c'][0], 
-                              bd['x_c'][1], 
-                              bd['x_c'][2], indexing='ij' )
-    R = np.sqrt( Xb**2 + Yb**2 )
-    R_out   = kwargs.get( "R_out", 1e32 )
-    Z_out   = kwargs.get( "R_out", 1e32 )
-    d_floor = kwargs.get( "d_floor", 1e-20 )
-    masses = ( bd[ 'rho' ] * np.prod( bd[ 'dx' ], axis = 0 ) )[ ( R < R_out ) & 
-                                                                ( np.abs( Zb ) < Z_out ) &
-                                                                ( bd[ 'rho' ] >= d_floor ) ]
-    R_out   = kwargs.get( "R_out", 1e32 )
-    Z_out   = kwargs.get( "R_out", 1e32 )
-    d_floor = kwargs.get( "d_floor", 1e-20 )
-    if len( masses ) == 0:
-        return 0
-    else:
-        return np.sum( masses ) * units.rho0 * units.l0**3 / units.modot
-
-def f_blk_cmzmass( bfd, **kwargs ):
-    return np.sum( np.array( bfd ) )
-
-def bf_hyd_cmzvel( b, bd, **kwargs ):
-    Xb, Yb, Zb = np.meshgrid( bd['x_c'][0], 
-                              bd['x_c'][1], 
-                              bd['x_c'][2], indexing='ij' )
-    R = np.sqrt( Xb**2 + Yb**2 )
-    R_out   = kwargs.get( "R_out", 1e32 )
-    Z_out   = kwargs.get( "R_out", 1e32 )
-    phi = np.arctan2( Yb, Xb )
-    mom_phi = bd[ 'mom' ][ 0 ] * -np.sin( phi ) +\
-              bd[ 'mom' ][ 1 ] *  np.cos( phi )
-    mom_phi = ( mom_phi * np.prod( bd['dx'], axis = 0 ) )[ ( R < R_out ) & ( np.abs( Zb ) < Z_out ) ]
-    dens    = ( bd[ 'rho' ] * np.prod( bd['dx'],axis = 0 ) )[ ( R < R_out ) & ( np.abs( Zb ) < Z_out ) ]
-    if len( mom_phi ) == 0:
-        return [ 0, 0 ]
-    else:
-        return [ np.sum( mom_phi ), 
-                 np.sum( dens ) ]
-
-def f_blk_cmzvel( bfd, **kwargs ):
-    tot = np.sum( np.array( bfd ), axis = 0 )
-    return tot[ 0 ] / tot[ 1 ] * units.l0 / units.t0 / 1e5
 
 
 def plt_time_evo( output_data, **kwargs ):
@@ -366,3 +294,34 @@ def draw_obs_val( ax, dat, data, **kwargs ):
     return draw_bar_on( ax, dat, data, **kwargs )
 
 
+def plt_phase( d, ax=None, **kwargs ):
+    enroll_mesh_tree( d )
+    enroll_T( d )
+    R_out = kwargs.get( "R_out", 1e32 )
+    Z_out = kwargs.get( "Z_out", 1e32 )
+    densities       = np.array( [] )
+    temperatures     = np.array( [] )
+    masses          =  np.array( [] )
+    for b, bd in d.data.items(  ):
+        if 'particle' in b:
+            continue;
+        rcyl = np.sqrt( bd['x_c'][0]**2 + bd['x_c'][1]**2 )
+        zcyl = np.abs( bd['x_c'][2] )
+        cell_range = ( rcyl < R_out ) & ( zcyl < Z_out ) 
+        densities    = np.concatenate( ( densities   ,   bd[ 'rho'  ][ cell_range ].flatten( ) ) )
+        temperatures = np.concatenate( ( temperatures,   bd[ 'T_ent'][ cell_range ].flatten( ) ) )
+        masses       = np.concatenate( ( masses      , ( bd[ 'rho'  ][ cell_range ] * np.prod( bd['dx0'] ) ).flatten( ) ) )
+    
+    rho_bins = kwargs.get( "rho_bins", 10**np.linspace(-4,4,1000) )
+    T_bins   = kwargs.get( "T_bins", 10**np.linspace( 0, 8, 1000 ) )
+    figsize  = kwargs.get( "figsize", ( 5, 5 ) )
+    if ax is None:
+        fig, ax = plt.subplots( 1, 1, figsize=figsize )
+    s = ax.hist2d( densities, temperatures, weights=masses*units.m0/units.modot, bins=[ rho_bins, T_bins ], norm=LogNorm() )
+    cbar = plt.colorbar(s[3])
+    cbar.set_label(r'Mass ($M_\odot$)')
+    ax.set_xscale('log')
+    ax.set_yscale('log')
+    ax.set_xlabel(r'$\rho$ ($m_p$ cm$^{-3}$)')
+    ax.set_ylabel(r'$T$ (K)')
+    return ax

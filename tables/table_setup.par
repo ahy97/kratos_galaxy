@@ -8,16 +8,22 @@ dirname          = ../../cloudyoutputs/production
 fname            = cmz_1_14.5_22
 
 #All ranges are in log10
-met_interp_range = -1.5 1.5 4              # 
-rho_interp_range = min+2   max-2    100    # min gives np.min, max gives np.max. 
-eg_interp_range  = min+1.2 max-0.75 100    # 
+met_interp_range = -1.5 1.5 3              # 
+rho_interp_range = min+2   max-2    30    # min gives np.min, max gives np.max. 
+eg_interp_range  = min+1.2 max-0.75 60    # 
 
 #Reduce mu interpolation dimensionality - variation assumed along T only if true
 reduce_mu_interp = True                    #
 rho_rep          = 1.67e-24                # representative rho to choose
 met_rep          = 1                       # representative met to choose
 
+#save data/interpolators for faster regeneration. Will only be saved in obj subdirectory
+data_path        = cloudy_data.pkl
+int_path         = int_data.pkl
+regen            = 0                       # 1 - True, 0 - False
+
 outname          = ../outputs/therm_tables/cooling_table.dat
+
 
 [fdbk]
 dirname          = ../../Starburst99/CGKZ3/Output

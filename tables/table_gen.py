@@ -6,6 +6,7 @@ import numpy as np
 sys.path.insert( 0, "../base" )
 from utils import *
 import pickle
+import glob, os
 
 if __name__ == "__main__":
     try:
@@ -16,9 +17,17 @@ if __name__ == "__main__":
     config = config_setup( setup_file )
     cloudy_dir  = config.get( "cooling", "dirname" )
     cloudy_file = config.get( "cooling", "fname"   )
-    cloudy_data_path = config.get( "cooling", "data_path", fallback="obj/cloudy_data.pkl" )
-    cloudy_int_path  = config.get( "cooling", "int_path" , fallback="obj/int_data.pkl" )
-    
+    cloudy_data_path = config.get( "cooling", "data_path", fallback="cloudy_data.pkl" )
+    cloudy_int_path  = config.get( "cooling", "int_path" , fallback="int_data.pkl" )
+    regen       = bool( int( config.get( "cooling", "regen", fallback=False ) ) )
+
+    if regen:
+        print( "Purging existing obj files" )
+        files = glob.glob( "obj/*" )
+        for i in files:
+            print( f"Purging {i}" )
+            os.remove( i )
+
     try:
         with open( cloudy_data_path, 'rb' ) as f:
             dat = pickle.load( f )
