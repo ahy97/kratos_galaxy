@@ -68,5 +68,5 @@ def bf_hyd_massflux( b, bd, **kwargs ):
 def f_blk_massflux( bfd, **kwargs ):
     tot = np.sum( np.array( bfd ), axis=0 )
     tot *= units.m0 / units.modot
-    tot /= ( units.t0 * units.yr )
+    tot /= ( units.t0 / units.yr )
     return [ tot[ 0 ], tot[ 1 ] ]
