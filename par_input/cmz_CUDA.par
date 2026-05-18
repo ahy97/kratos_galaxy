@@ -1,0 +1,173 @@
+[device]
+max_streams = 256
+
+[mesh]
+x_min = -6000 -6000 -6000
+x_max =  6000  6000  6000
+
+n_cell_global = 128 128 128
+n_cell_block  =  64  64  64
+
+[refine_region_00]
+level = 3
+x_min = -500 -500 -100
+x_max =  500  500  100
+
+[boundary]
+kinds = out out out out out out
+independent_stream = 0
+
+[cycle]
+prefix_output  = outputs/cmz_fb3
+n_cycle_lim    = 1000000000
+n_display_freq = 1
+except_ferr    = 1
+
+t_lim          = 300
+dt_output      = 10
+t_output_next  = 0
+final_output   = 0
+
+[multigrid]
+thread_limit   = 64
+iter_static    = 10000
+iter_first     = 10000
+n_iter         = 10
+n_smooth       = 1
+cycle_per_deep = 1
+dtol           = 1e-3# 5e-2 for no SMR test
+dtol_stat      = 1e-3# 1e-2 for no SMR test
+ddiv           = 1e-2
+is_test        = 0
+# phy_bnd_type   = fixed
+# uncomment for dirichlet BC, default is Neumann
+
+[chemistry]
+species = Z# Pseudo sp.
+
+[dynamics]
+rho_floor      = 1e-4
+tmp_floor      = 1e-2 #cs_2 floor
+gamma          = 1.6
+thread_limit   = 256
+reapply_floor  = 1
+chem_recon = none
+
+[unit]
+length         = 3.0857e18  # 1e0  pc
+time           = 3.1536e13  # 1e6  yr
+density        = 1.673e-24  # 1 mp/cm^3
+
+[prob]
+rho0_cgs       = 1.6e-29 # 6e0 proton/cm3
+T0_cgs         = 10        # Kelvin
+vrand_cgs      = 1e7
+z0_solar       = 0.1
+par_capacity_proc = 1e7
+
+#Bar and Background rampup
+##################################################
+ramp_t_bar    = 0 146
+ramp_t_bg     = 0 146
+ramp_f_bg     = 1.6071458055913659 1#1.554360667656236 1#
+ramp_f_bar    = 0 1
+##################################################
+
+
+#NFW halo and SMBH (point mass)
+##################################################
+halo_enable = 1
+rhoh0_cgs = 5.727510300414928e-25 # cgs - 0.00846 Msun/pc^3
+rh_cgs    = 6.233114e+22          # cgs - 20.2 kpc
+mbh_cgs   = 7.9564e39 # 4e6 M_sun
+##################################################
+
+#Bar Pattern Speed
+##################################################
+omega_cgs      = 1.285e-15 #
+##################################################
+
+#Central Sink Region
+##################################################
+r_sink_cgs     = 0 ##6e19    # ~20 pc
+##################################################
+
+#Sink particles
+##################################################
+rho_sink_create_min_cgs = 1e0# 1.6e-25
+use_lp_criteria       = 1
+use_phi_min           = 0
+sink_scheme           = 0     # 0 - sink_eff mass with 100% SFE
+                              # 1 - rho - rho_sink mass with sink_eff SFE
+beta_sink    = 100 0 #1 0.01
+t_acc_yr     = 0
+m_sink_frac  = 0.008
+bondi_on     = 1
+merge_on     = 1              # merging on or off. REMEMBER TO SET ANOTHER SPECIES
+merge_cutoff_msun = -1       # only merge below this mass. -1 turns it off and merges everything
+merge_ratio  = -1              # max mass ratio particles can merge per timestep
+mu_cgs       = 2.25e-24
+sink_delay    = 0 #delay sink formation
+sink_eff_alpha = -0.36
+temp_sink     = 2e2
+r_max_sink_cgs = 1.5e22
+##################################################
+
+#Feedback
+##################################################
+sne_cell_alpha_w = 3
+sne_cell_n_snr = 1
+sne_scheme     = 2 #1 - blastwave, 2 - kimm+cen
+photon_scheme  = 1 #1 - FIRE II, 2 - R_S0 from Draine
+photon_tfloor  = 2e4
+sne_on          = 1
+photon_on       = 1
+wind_on         = 1
+SF_delay_on     = 0
+feedback_file       = ../../Starburst99/feedback_Z3.dat
+acc_file        = ../../Starburst99/alpha_acc.dat
+##################################################
+
+#Feedback test
+##################################################
+#global_inject     = 1
+#x_force_inject = 0.01 0.01 0.01
+#v_force_inject = 0.0 0.0 0.0
+#m_force_inject = 1e0            #units of Msol
+#test_Nsne      = 1
+#test_Mej_cgs   = 1.989e34
+##################################################
+
+#Gravity Flags
+##################################################
+grav_stat_output        = 1
+# grav_stat = 0
+# grav_stat_force_disable = 0
+# grav_mg = 0
+# 
+# grav_conv  = 0 # 4 pi G in code u
+# comment for default value
+##################################################
+
+
+
+[init]
+file           = ../../init/init_cond_v2.bin
+
+[cooling]
+file           = ../../kratos_galaxy/outputs/therm_tables/cooling_table.dat#../../therm_tables/cmz_const_1_1000.dat
+T_lim          = 1e1 1e8
+cool_off       = 0
+n_iter_cool    = 100
+extinction_off = 1
+heating_off    = 0
+const_table    = 1
+combine_tables = 0
+
+[turbulence]
+de_cgs         = 0#10
+n_cycle_off    = 0#-1
+do_turb        = 0#1
+mode_max       = 0#32
+single_dir     = 0#-1
+src_scale      = 0 #0.0625 0.026 #bar and bg

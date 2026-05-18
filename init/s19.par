@@ -1,0 +1,88 @@
+[unit] #basic density, length and time units in CGS
+rho0   = 1.67262e-24 #Default 1.67262e-24, 1 mp/cm^3
+l0     = 3.0857e+18  #Default 3.0857e+18, 1 pc
+t0     = 3.1536e13   #Default 3.1536e13, 1e6 yr
+
+#All non-dimensionless values will be in units of code units unless otherwise specified
+#Composite units such as mass or velocity will be given as typical astro units ex. Msol, km/s
+
+[FDM]
+FDM_on   = 1
+coord    = sph 
+spacing  = 1.02   1 # 1 for uniform, > 1 or < 1 for log 
+x_min    =    0   0 # units of l0 for length, 
+                      # units of pi for angle 
+                      #(1 = pi for phi and theta)
+x_max    =  1e5 0.5
+n_cell   =  512 256
+n_gh     =  1   1
+
+bound_min = neu    neu # neu for neumann, dir for
+bound_max = neudir neu # dirichlet, neudir for both
+
+[background_src] #Make sure the functions in background.py have the same names
+bar_portail = 0 #10.1093/mnrasl/slac046 and https://doi.org/10.1093/mnras/stw2819
+bulge_s19   = 1 #10.1093/mnras/stz2054
+disc_s19    = 1 #10.1093/mnras/stz2054
+bar_s19     = 1 #10.1093/mnras/stz2054
+disc_m17    = 0 #10.1093/mnras/stw2759
+disc_s22    = 0 #10.1093/mnrasl/slac046
+nsc_s20     = 0 #10.1093/mnras/staa2785
+nsd_s20     = 0 #10.1093/mnras/staa2785
+
+[background_mass] #Make sure the names match the background source names above (M_{name} format) 
+m_bar_portail = 1.83e10 #Units of Msol
+m_disc_s22    = 3.19e10 #Units of Msol
+m_nsc_s20     = 6.1e7   #Units of Msol
+m_nsd_s20     = 1.05e9  #Units of Msol
+rmax_intg     = 1e4     #Units of l0, max r to integrate when calculating mass
+
+[background_analytic]
+rho_halo    = 0.3424 #units of rho0
+r_halo     = 20200   #units of l0
+M_bh        = 4e6    #units of Msol
+
+
+[IC_profile]
+coord    = sph # cart = cartesian   ( x, y, z )
+               # cyl  = cylindrical ( r, z, phi )
+               # sph  = spherical   ( r, theta, phi )
+profile_flags  = disc zsolve #zsolve #profiles along each dimension
+                       #options: disc, exp, gauss, uniform, sech2, zsolve
+                       #zsolve only applies for vertical
+
+ICname   = ../outputs/init_cond/cmz_init_s19.bin
+
+[zsolve] #axisymmetry assumed, always using cylindrical coordinates
+rcut    = 2e4
+zcut    = 2e4
+
+[IC_hydro]
+mu      = 1.26
+Tdisc   = 1e4   #units of Kelvin
+rhobase = 6     #units of rho0
+metdisc = 3     #units of Z/Zsol
+metcgm  = 0.1   #units of Z/Zsol
+metzcut = 100   #units of l0
+
+
+
+
+[disc]
+scale_lengths = 1.5e3 7e3 #rm and rd, units of l0
+[exp]
+scale_lengths = 150 # units of l0
+[gauss]
+scale_lengths = 150 # units of l0
+[sech2]
+scale_lengths = 170 # units of l0
+
+[output_grid]
+coord    = sph 
+spacing  = 1.02   1 # 1 for uniform, > 1 or < 1 for log 
+x_min    =    0   0 # units of l0 for length, 
+                      # units of pi for angle 
+                      #(1 = pi for phi and theta)
+x_max    =  1e4 0.5
+n_cell   =  512 256
+n_gh     =  0   0
