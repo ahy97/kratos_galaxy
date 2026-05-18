@@ -250,19 +250,65 @@ def enroll_vel( d ):
                                    for i in range( len( bd[ 'mom' ] ) ) ] ) )
     enroll_sgn( d, 'vel' )
     
+#def enroll_flux( d, fld, func=None ):
+#    t0     = d.args( "unit",    "time" );
+#    l0     = d.args( "unit",  "length" );
+#    rho0   = d.args( "unit", "density" ); 
+#    enroll_vel( d )
+#    if func is not None:
+#        d.enroll_field( fld, func )
+#    d.enroll_field( f'flux_{fld}', lambda bd : \
+#                               np.array([ bd[ 'vel' ][ i ] * bd[ 'dx0' ][ i ] *#np.prod( [ bd[ 'dx0' ][ j ] for j in range( len( bd[ 'vel' ] ) ) if j != i ] ) *
+#                                        ( bd[ fld ] if bd[ fld ].ndim < bd[ 'vel' ].ndim else bd[ fld ][ i ] )
+#                                          for i in range( len( bd[ 'vel' ] ) ) ] ) )
+#    enroll_sgn( d, f'flux_{fld}' )
 def enroll_flux( d, fld, func=None ):
-    t0     = d.args( "unit",    "time" );
-    l0     = d.args( "unit",  "length" );
-    rho0   = d.args( "unit", "density" ); 
+    """
+    Enroll a mass-flux field for `fld` (typically density or a passive scalar).
+    
+    The flux in direction i is:
+        F_i = vel_i * fld * A_i
+    where A_i = product of dx in all directions j != i (the transverse face area),
+    evaluated at the cell's actual refinement level (using dx, not dx0).
+    
+    All quantities are normalized by the code flux unit:
+        flux_unit = rho0 * l0^2 * (l0 / t0)
+    """
+    t0   = d.args( "unit",   "time" )
+    l0   = d.args( "unit", "length" )
+    rho0 = d.args( "unit","density" )
+
+    flux_unit = rho0 * l0**2 * ( l0 / t0 )   # [density * area * velocity]
+
     enroll_vel( d )
+
     if func is not None:
         d.enroll_field( fld, func )
-    d.enroll_field( f'flux_{fld}', lambda bd : \
-                               np.array([ bd[ 'vel' ][ i ] / bd[ 'dx' ][ i ]**2 *
-                                        ( bd[ fld ] if bd[ fld ].ndim < bd[ 'vel' ].ndim else bd[ fld ][ i ] )
-                                          for i in range( len( bd[ 'vel' ] ) ) ] ) )
-    enroll_sgn( d, f'flux_{fld}' )
 
+    def flux_func( bd ):
+        vel  = bd[ 'vel' ]                    # shape (ndim, ...) — cell-centered
+        dx   = bd[ 'dx0'  ]                    # shape (ndim,)     — THIS level's dx
+        phi  = bd[ fld   ]                    # scalar or vector field
+
+        ndim = len( vel )
+
+        fluxes = []
+        for i in range( ndim ):
+            # Face area in direction i = product of dx in all OTHER directions
+            A_i   = np.prod( [ dx[j] for j in range( ndim ) if j != i ] )
+
+            # Select the i-th component if phi is a vector, else use scalar
+            phi_i = phi[i] if phi.ndim == vel.ndim else phi
+
+            fluxes.append( vel[i] * phi_i * A_i )#/ flux_unit )
+
+        return np.array( fluxes )   # shape (ndim, ...)
+
+    d.enroll_field( f'flux_{fld}', flux_func )
+
+    # Enroll signed flux along each axis separately so inflow/outflow
+    # splitting respects the direction of each component independently
+    enroll_sgn( d, f'flux_{fld}' )
 def map_particle_blk( d, *pflds ): 
     enroll_mesh_tree( d )
     from itertools import product

@@ -302,24 +302,57 @@ def plt_phase( d, ax=None, **kwargs ):
     densities       = np.array( [] )
     temperatures     = np.array( [] )
     masses          =  np.array( [] )
+    weights         = np.array( [] )
+    weightfunc = kwargs.get( "weightfunc", None )
+    filterfunc = kwargs.get( "filterfunc", lambda bd : True )
     for b, bd in d.data.items(  ):
         if 'particle' in b:
             continue;
         rcyl = np.sqrt( bd['x_c'][0]**2 + bd['x_c'][1]**2 )
         zcyl = np.abs( bd['x_c'][2] )
-        cell_range = ( rcyl < R_out ) & ( zcyl < Z_out ) 
-        densities    = np.concatenate( ( densities   ,   bd[ 'rho'  ][ cell_range ].flatten( ) ) )
-        temperatures = np.concatenate( ( temperatures,   bd[ 'T_ent'][ cell_range ].flatten( ) ) )
-        masses       = np.concatenate( ( masses      , ( bd[ 'rho'  ][ cell_range ] * np.prod( bd['dx0'] ) ).flatten( ) ) )
-    
-    rho_bins = kwargs.get( "rho_bins", 10**np.linspace(-4,4,1000) )
-    T_bins   = kwargs.get( "T_bins", 10**np.linspace( 0, 8, 1000 ) )
+        cell_range = ( rcyl < R_out ) & ( zcyl < Z_out )
+        bd_filter    = cell_range & filterfunc( bd ) 
+        densities    = np.concatenate( ( densities   ,   bd[ 'rho'  ][ bd_filter ].flatten( ) ) )
+        temperatures = np.concatenate( ( temperatures,   bd[ 'T_ent'][ bd_filter ].flatten( ) ) )
+        masses       = np.concatenate( ( masses      , ( bd[ 'rho'  ][ bd_filter ] * np.prod( bd['dx0'] ) ).flatten( ) ) )
+        if weightfunc is not None:
+            blk_wgt  = weightfunc( bd )
+            weights  = np.concatenate( ( weights, blk_wgt[ bd_filter ].flatten( ) ) )
+        else:
+            weights  = np.concatenate( ( weights, ( bd[ 'rho'  ][ bd_filter ] * np.prod( bd['dx0'] ) ).flatten( ) * units.m0 / units.modot ) )
+    rho_bins = kwargs.get( "rho_bins", 10**np.linspace(-4,4,100) )
+    T_bins   = kwargs.get( "T_bins", 10**np.linspace( 0, 8, 100 ) )
     figsize  = kwargs.get( "figsize", ( 5, 5 ) )
+
+    counts, xbins, ybins = np.histogram2d(
+        densities, temperatures,
+        weights=weights,
+        bins=[rho_bins, T_bins],
+    )
+
+    vmin     = kwargs.get( "vmin", np.min( counts[ counts > 0 ] ) )
+    vmax     = kwargs.get( "vmax", np.max( counts ) )
+    plot_contour = kwargs.get( "plot_contour", False )
+    levels   = kwargs.get( "levels", 10 )
     if ax is None:
         fig, ax = plt.subplots( 1, 1, figsize=figsize )
-    s = ax.hist2d( densities, temperatures, weights=masses*units.m0/units.modot, bins=[ rho_bins, T_bins ], norm=LogNorm() )
-    cbar = plt.colorbar(s[3])
-    cbar.set_label(r'Mass ($M_\odot$)')
+    
+    if plot_contour:
+
+        xcenters = 0.5 * ( xbins[:-1] + xbins[1:] )
+        ycenters = 0.5 * ( ybins[:-1] + ybins[1:] )
+        s = ax.contourf( xcenters, ycenters, counts.T, 
+                         levels=10**np.linspace( np.log10( vmin ), np.log10( vmax ), levels ), 
+                         norm=LogNorm(vmin=vmin, vmax=vmax) )
+        norm = mpl.colors.LogNorm(vmin=s.cvalues.min(), vmax=s.cvalues.max())
+        sm = plt.cm.ScalarMappable( norm=norm, cmap = s.cmap )
+        sm.set_array([])
+        cbar = fig.colorbar(sm, ax=ax )#, ticks=s.levels)
+    else:
+        s = ax.hist2d( densities, temperatures, weights=weights, bins=[ rho_bins, T_bins ], norm=LogNorm(vmin=vmin, vmax=vmax) )
+        cbar = plt.colorbar(s[3])
+    cbar_label = kwargs.get( "cbar_label", r'Mass ($M_\odot$)' )
+    cbar.set_label( cbar_label )
     ax.set_xscale('log')
     ax.set_yscale('log')
     ax.set_xlabel(r'$\rho$ ($m_p$ cm$^{-3}$)')

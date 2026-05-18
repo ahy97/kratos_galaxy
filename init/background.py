@@ -119,7 +119,7 @@ class background( units ):
             mass_key = f"m_{ name }"
             if mass_key in component_masses:
                 kwargs2[ "mass" ] = (
-                    float( component_masses[ mass_key ] ) * self.modot
+                    float( component_masses[ mass_key ] ) * self.modot / self.m0
                 )
             src = background_source( **kwargs2 )
             setattr( self, f"{ name }_", src )
@@ -343,6 +343,27 @@ class background( units ):
         a2 = ( x**2 + ( y**2 + z**2 ) / qb2**2 )**0.5
 
         return rhob1 * np.exp( -a1 / ab1 ) + rhob2 * np.exp( -a2 / ab2 )
+
+
+    def disc_h24( self, r, theta ): #hunter 2024 equation 13 ( typo - h1 is z1, h2 is z2 )
+        z = r * np.cos( theta )
+        R = r * np.sin( theta ) 
+
+        sigma1 = 1.3719e3 * ( self.modot / self.m0 ) / ( self.pc / self.l0 )**2
+        sigma2 = 9.2391e2 * ( self.modot / self.m0 ) / ( self.pc / self.l0 )**2
+
+        Rd1 = 2e3 * self.pc / self.l0
+        Rd2 = 2.8e3 * self.pc / self.l0
+
+        z1  = 3e2 * self.pc / self.l0
+        z2  = 9e2 * self.pc / self.l0
+
+        Rcut = 2.4e3 * self.pc / self.l0
+
+        return sigma1 / ( 2 * z1 ) * np.exp( - R / Rd1 - Rcut / R - np.abs( z ) / z1 ) +\
+               sigma2 / ( 2 * z2 ) * np.exp( - R / Rd2 - Rcut / R - np.abs( z ) / z2 )
+
+
 
     def halo( self, r ):
         x = r / self.r_halo

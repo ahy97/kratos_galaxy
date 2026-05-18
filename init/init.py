@@ -121,9 +121,21 @@ class profile( profile_base ):
             else:
                 if scale_lengths is None:
                     self.scale_lengths.append( df( np.array( self.config[ i ][ 'scale_lengths' ].split( ), dtype=np.float64 ), "l" ) ) 
-
+        mass2d = df( 0, "m" )
+        mass3d = df( 0, "m" )
+        for src in self.background_potential.background.components.values( ):
+            if src.dim == 2:
+                mass2d += src.mass
+            elif src.dim == 3:
+                mass3d += src.mass
+        self.axsym_rat = ( mass2d + mass3d ) / mass2d
+        print( f"2D mass: {mass2d} Msol" )
+        print( f"3D mass: {mass3d} Msol" )
+        print( f"Ratio: { self.axsym_rat }")
         self.densprof = self.calc_densprof( )
         self.velprof  = self.calc_velprof( )
+        self.densprof[ np.isnan( self.densprof.data ) ] = 0
+        self.velprof[ np.isnan( self.velprof.data ) ]   = 0
 
         self.metdisc      = kwargs.get( "metdisc"  , float( self.config.get( 'IC_hydro', "metdisc"  , fallback=3  ) ) )
         self.metcgm       = kwargs.get( "metcgm"   , float( self.config.get( 'IC_hydro', "metcgm"   , fallback=0.1  ) ) )
@@ -153,7 +165,7 @@ class profile( profile_base ):
     
     def calc_velprof( self ):
         self.background_potential.coord_transform( self.cylgrid, fill_val=0 )
-        potcyl = self.background_potential.phi_numeric
+        potcyl = self.background_potential.phi_numeric * self.axsym_rat
         Rcyl   = self.cylgrid.mesh[ 0 ]
         dphidr = ( potcyl[ 2: ] - potcyl[ :-2 ] ) / ( Rcyl[ 2:  ] - Rcyl[ :-2 ] )#np.zeros( Rcyl.shape )
         dphidr = np.concatenate( ( dphidr[ :1, : ], dphidr, dphidr[ -1:, : ] ) )
@@ -260,11 +272,14 @@ class IC( gen_profiles_bin ):
                        [ i.data for i in grid_cgs ], 'hydro', 
                        field_names = [ 'rho', 'pre', 'vel', 'met' ] )
         
+        #spiralmod = profile.config.getboolean( "IC_profile", "spiral_mod", fallback=False )
         if kwargs.get( "use_background", True ):
             bg2d = background_source( )
             bg3d = background_source( )
             for source_key, source in profile.background_potential.background.components.items():
                 if source.dim == 2:
+        #            if "disc" in source_key and spiralmod:
+        #                continue
                     bg2d  = bg2d + source
                 elif source.dim == 3:
                     bg3d  = bg3d + source
@@ -272,13 +287,33 @@ class IC( gen_profiles_bin ):
             if kwargs.get( "cmz", False ):
                 bg2d = ( bg3d.mass + bg2d.mass ) / bg2d.mass * bg2d
             
-            
             self.enroll( bg2d.src_cgs, grid_cgs, 'bg' )
             if len( profile.grid ) == 3:
                 self.enroll( bg3d.src_cgs, grid_cgs, 'bar' )
             else:
                 x3 = kwargs.get( "x3", grid_cgs[ -1 ] )
                 self.enroll( bg3d.src_cgs, grid_cgs + [ x3 ], 'bar' )
+
+            #def spiral_h24( R, phi ): #Polar modification to disc to be stored separately
+            #    def f( m, gam, R, phi ):
+            #        Ra = 9640 * units.pc / profile.l0
+            #        i = 12.5 * np.pi / 180
+            #        return np.cos( m * ( phi + gam ) - ( m / np.tan( i ) ) * np.log( R / Ra ) )
+            #    S = 0
+            #    sigmasp = 5e3 * units.pc / profile.l0
+            #    from scipy.special import iv
+            #    for m, gam in zip( [ 2, 2 ], [ 139.5 * np.pi / 180, 
+            #                                   69.75 * np.pi / 180 ] ):
+            #        term1 = np.exp( ( -R**2 / sigmasp**2 ) * ( 1 - f( m, gam, R, phi ) ) )
+            #        tern2 = np.exp( -R**2 / sigmasp**2 ) * iv( 0, R**2 / sigmasp**2 )
+            #        S += term1 - tern2
+            #    R0 = 8179 * units.pc / profile.l0
+            #    return 0.36 * R**2 / R0**2 * S
+            #
+            #if spiralmod:
+            #    print( "Enrolling spiral arm perturbation" )
+            #    self.enroll( spiral_h24, [ grid_cgs[ 0 ], np.linspace( 0, 2 * np.pi, len( grid_cgs[ 1 ] ) ) ], 
+            #                'spiral_mod' )
         self.save( )
         self.close( )
         return

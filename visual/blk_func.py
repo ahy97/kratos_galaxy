@@ -51,3 +51,22 @@ def bf_hyd_cmzvel( b, bd, **kwargs ):
 def f_blk_cmzvel( bfd, **kwargs ):
     tot = np.sum( np.array( bfd ), axis = 0 )
     return tot[ 0 ] / tot[ 1 ] * units.l0 / units.t0 / 1e5
+
+def bf_hyd_massflux( b, bd, **kwargs ):
+    zflux = kwargs.get( "zflux", 140 )
+    R_in  = kwargs.get( "R_in", 500 )
+    R = np.sqrt( bd[ 'x_c' ][ 0 ]**2 + bd[ 'x_c' ][ 1 ]**2 )
+    dz = bd[ 'dx0' ][ 2 ]
+    cell_z_pos = (  zflux > bd[ 'x' ][ 2 ] - dz / 2 ) & (  zflux <= bd[ 'x' ][ 2 ] + dz / 2 )
+    cell_z_neg = ( -zflux > bd[ 'x' ][ 2 ] - dz / 2 ) & ( -zflux <= bd[ 'x' ][ 2 ] + dz / 2 )
+    cell_R_in  = R < R_in
+    cell_area  = bd[ 'dx0' ][ 0 ] * bd[ 'dx0' ][ 1 ]
+    flux_in  = np.sum( bd[ 'mom' ][ 2 ][ cell_z_pos & cell_R_in ] ) * cell_area - np.sum( bd[ 'mom' ][ 2 ][ cell_z_neg & cell_R_in ] ) * cell_area
+    flux_out = np.sum( bd[ 'mom' ][ 2 ][ cell_z_pos & ~cell_R_in ] ) * cell_area - np.sum( bd[ 'mom' ][ 2 ][ cell_z_neg & ~cell_R_in ] ) * cell_area
+    return [ flux_in, flux_out ]
+
+def f_blk_massflux( bfd, **kwargs ):
+    tot = np.sum( np.array( bfd ), axis=0 )
+    tot *= units.m0 / units.modot
+    tot /= ( units.t0 * units.yr )
+    return [ tot[ 0 ], tot[ 1 ] ]

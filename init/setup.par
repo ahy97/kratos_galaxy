@@ -83,6 +83,6 @@ spacing  = 1.02   1 # 1 for uniform, > 1 or < 1 for log
 x_min    =    0   0 # units of l0 for length, 
                       # units of pi for angle 
                       #(1 = pi for phi and theta)
-x_max    =  1e5 0.5
+x_max    =  1e4 0.5
 n_cell   =  512 256
 n_gh     =  0   0
