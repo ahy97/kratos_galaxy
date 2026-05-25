@@ -235,7 +235,7 @@ def plt_time_evo( output_data, **kwargs ):
     xlabel   = kwargs.get( 'xlabel', r'Time ( Myr )' )
     ylims    = kwargs.get( "ylims", [ None for i in range( rows ) ] )
     logs     = kwargs.get( "logs", [ True for i in range( rows ) ] )
-
+   
     markers  = kwargs.get( "markers", [ "o" for i in range( rows ) ] )
     if isinstance( markers, str ):
         markers = [ markers for i in range( rows ) ]
@@ -264,7 +264,33 @@ def plt_time_evo( output_data, **kwargs ):
                    color, fp, fpkw ) in enumerate( zip( data.items( ), ylims, 
                                                      logs, markers, linestyles, 
                                                      colors, fplot, fplot_kwargs ) ):
-            ax[ j, i ].plot( dat[ 'time' ], dat[ 'data' ], linestyle=linestyle, 
+            
+            if any( isinstance( el, tuple ) for el in color ):#isinstance( color, tuple ):
+                print( color )
+                arrdat = np.array( dat[ 'data' ] )
+                
+                if isinstance( linestyle, tuple ):
+                    lnst = linestyle
+                else:
+                    lnst = tuple( [ linestyle for k in color ] )
+
+                if isinstance( label, tuple ):
+                    lbl = label
+                else:
+                    lbl = tuple( [ label for k in color ] )
+                
+                if isinstance( marker, tuple ):
+                    mkr = marker
+                else:
+                    mkr = tuple( [ marker for k in color ] )
+
+                for k, ( ls, c, lb, mk ) in enumerate( zip( lnst, color, lbl, mkr ) ):
+                    ax[ j, i ].plot( dat[ 'time' ], arrdat[ :,k ], linestyle=ls, 
+                                                                   color=c, 
+                                                                   label=lb,
+                                                                   marker=mk )
+            else:   
+                ax[ j, i ].plot( dat[ 'time' ], dat[ 'data' ], linestyle=linestyle, 
                                                            color=color, 
                                                            label=label,
                                                            marker=marker )

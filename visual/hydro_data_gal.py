@@ -409,3 +409,37 @@ def map_particle_blk( d, *pflds ):
         for k in pflds:
             d.data[ blk ][ k ] /= np.prod( dat[ 'dx' ], axis=0 )
     return
+
+def par_pos_cut( d, x1range, x2range, x3range=None, coord='cyl' ):
+    """
+    simple way to isolate particles in certain regions
+    cart : x, y, z
+    cyl  : R, z, phi
+    sph  : R, theta, phi
+    """
+    x, y, z = d.data[ 'particle_x' ].T
+    if not isinstance( x1range, ( list, tuple, np.ndarray ) ):
+        x1range = [ 0, x1range ]
+    if not isinstance( x2range, ( list, tuple, np.ndarray ) ):
+        x2range = [ 0, x2range ]
+
+    if coord == 'cart':
+        x1 = x
+        x2 = y
+        x3 = z
+    elif coord == 'cyl':
+        x1 = np.sqrt( x**2 + y**2 )
+        x2 = z
+        x3 = np.arctan2( y, x )
+    elif coord == 'sph':
+        x1 = np.sqrt( x**2 + y**2 + z**2 )
+        x2 = np.arccos( z / x1 )
+        x3 = np.arctan2( y, x )
+    filter = np.logical_and( np.logical_and( x1 >= x1range[ 0 ], x1 <= x1range[ 1 ] ),
+                             np.logical_and( x2 >= x2range[ 0 ], x2 <= x1range[ 1 ] ) )
+    if x3range is not None:
+        if not isinstance( x3range, ( list, tuple, np.ndarray ) ):
+            x3range = [ 0, x3range ]
+        filter = np.logical_and( filter,
+                                 np.logical_and( x3 >= x3range[ 0 ], x2 <= x3range[ 1 ] ) )
+    return filter
