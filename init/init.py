@@ -83,7 +83,11 @@ class profile( profile_base ):
         """
         super().__init__( **kwargs )
         self.flags = kwargs.get( "profile_flags", self.config[ 'IC_profile' ][ 'profile_flags' ].split( ) )
-        if len( self.flags ) != len( self.grid ):
+        use_usr_func = False
+        if "usr_func" in self.flags:
+            print( "Applying user defined density function" )
+            use_usr_func = True
+        if len( self.flags ) != len( self.grid ) and not use_usr_func:
             raise IndexError( "Grid dimension must be same as number of profile flags" )
         self.rhobase = kwargs.get( "rhobase", float( self.config.get( 'IC_hydro', "rhobase", fallback=1    ) ) )
         mu           = kwargs.get( "mu"     , float( self.config.get( 'IC_hydro', "mu"     , fallback=1.26 ) ) )
@@ -118,6 +122,8 @@ class profile( profile_base ):
                 self.zsolve_init( **kwargs )
                 if scale_lengths is None:
                     self.scale_lengths.append( [ None ] )
+            elif use_usr_func:
+                break
             else:
                 if scale_lengths is None:
                     self.scale_lengths.append( df( np.array( self.config[ i ][ 'scale_lengths' ].split( ), dtype=np.float64 ), "l" ) ) 
@@ -132,8 +138,8 @@ class profile( profile_base ):
         print( f"2D mass: {mass2d} Msol" )
         print( f"3D mass: {mass3d} Msol" )
         print( f"Ratio: { self.axsym_rat }")
-        self.densprof = self.calc_densprof( )
-        self.velprof  = self.calc_velprof( )
+        self.densprof = self.calc_densprof( use_usr_func )
+        self.velprof  = self.calc_velprof( use_usr_func )
         self.densprof[ np.isnan( self.densprof.data ) ] = 0
         self.velprof[ np.isnan( self.velprof.data ) ]   = 0
 
@@ -156,23 +162,64 @@ class profile( profile_base ):
         self.cylgrid.grid_reinit( )
         return
     
-    def calc_densprof( self ):
-        profs = []
-        for i, j in enumerate( self.flags ):
-            profs.append( self.rho( self.cylgrid.mesh[ i ], j, *self.scale_lengths[ i ] ) )
-        res = self.rhobase * np.prod( np.array( profs ), axis=0 )
-        return self.cylgrid.interpolate_data( self, res, fill_val=0 ) #self.rhobase * np.prod( np.array( profs ), axis=0 )
+    def usr_func( self ):
+        Sigma1 = df( 53.1 * ( units.modot / units.m0 ) * ( units.pc / units.l0 )**-2, "m*l^-2" )
+        z1 =  df( 85 * units.pc / units.l0  , "l")
+        Rm1 = df( 4000 * units.pc / units.l0, "l")
+        Rd1 = df( 7000 * units.pc / units.l0, "l")
+        
+        Sigma2 = df( 2180 * ( units.modot / units.m0 ) * ( units.pc / units.l0 )**-2, "m*l^-2" )
+        z2 =  df( 45 * units.pc / units.l0   , "l")
+        Rm2 = df( 12000 * units.pc / units.l0, "l")
+        Rd2 = df( 1500 * units.pc / units.l0 , "l")
+
+        gd1 = Sigma1 / ( 4 * z1 ) * self.rho( self.cylgrid.mesh[ 0 ], "disc", Rm1, Rd1 ) * self.rho( self.cylgrid.mesh[ 1 ], "sech2", z1 )
+        gd2 = Sigma2 / ( 4 * z2 ) * self.rho( self.cylgrid.mesh[ 0 ], "disc", Rm2, Rd2 ) * self.rho( self.cylgrid.mesh[ 1 ], "sech2", z2 )
+        return gd1 + gd2
+
+    def usr_func_prime( self, **kwargs ):
+        Sigma1 = df( 53.1 * ( units.modot / units.m0 ) * ( units.pc / units.l0 )**-2, "m*l^-2" )
+        z1 =  df( 85 * units.pc / units.l0  , "l")
+        Rm1 = df( 4000 * units.pc / units.l0, "l")
+        Rd1 = df( 7000 * units.pc / units.l0, "l")
+        
+        Sigma2 = df( 2180 * ( units.modot / units.m0 ) * ( units.pc / units.l0 )**-2, "m*l^-2" )
+        z2 =  df( 45 * units.pc / units.l0   , "l")
+        Rm2 = df( 12000 * units.pc / units.l0, "l")
+        Rd2 = df( 1500 * units.pc / units.l0 , "l")
+
+        gd1 = Sigma1 / ( 4 * z1 ) * self.rho_prime( self.cylgrid.mesh[ 0 ], "disc", Rm1, Rd1 )# * self.rho( self.cylgrid.mesh[ 1 ], "sech2", z1 )
+        gd2 = Sigma2 / ( 4 * z2 ) * self.rho_prime( self.cylgrid.mesh[ 0 ], "disc", Rm2, Rd2 )# * self.rho( self.cylgrid.mesh[ 1 ], "sech2", z2 )
+        return gd1 + gd2
+
+    def calc_densprof( self, use_usr_func=False ):
+        if use_usr_func:
+            return self.cylgrid.interpolate_data( self, self.usr_func( ), fill_val=0 )
+        else:
+            profs = []
+            for i, j in enumerate( self.flags ):
+                profs.append( self.rho( self.cylgrid.mesh[ i ], j, *self.scale_lengths[ i ] ) )
+            res = self.rhobase * np.prod( np.array( profs ), axis=0 )
+            return self.cylgrid.interpolate_data( self, res, fill_val=0 ) #self.rhobase * np.prod( np.array( profs ), axis=0 )
     
-    def calc_velprof( self ):
+    def calc_velprof( self, use_usr_func=False ):
         self.background_potential.coord_transform( self.cylgrid, fill_val=0 )
         potcyl = self.background_potential.phi_numeric * self.axsym_rat
         Rcyl   = self.cylgrid.mesh[ 0 ]
         dphidr = ( potcyl[ 2: ] - potcyl[ :-2 ] ) / ( Rcyl[ 2:  ] - Rcyl[ :-2 ] )#np.zeros( Rcyl.shape )
         dphidr = np.concatenate( ( dphidr[ :1, : ], dphidr, dphidr[ -1:, : ] ) )
         dphidr += self.background_potential.background.dphidR_analytic( *self.cylgrid.mesh )
-        velsq          =   Rcyl * dphidr + self.cs2 *\
-                                         ( Rcyl / self.rho( Rcyl, self.flags[ 0 ], *self.scale_lengths[ 0 ] ) ) *\
-                                           self.rho_prime( Rcyl, self.flags[ 0 ], *self.scale_lengths[ 0 ] )
+        velsq          =   Rcyl * dphidr 
+        if use_usr_func:
+            pass
+            #velsq += self.cs2 *\
+            #       ( Rcyl / self.usr_func( )*\
+            #         self.usr_func_prime( ) )
+        else:
+            velsq += self.cs2 *\
+                   ( Rcyl / self.rho( Rcyl, self.flags[ 0 ], *self.scale_lengths[ 0 ] ) ) *\
+                     self.rho_prime( Rcyl, self.flags[ 0 ], *self.scale_lengths[ 0 ] )
+
         velsq[ velsq < 0 ] = 0
         velsq[ np.isnan( velsq.data ) ] = 0
         return self.cylgrid.interpolate_data( self, np.sqrt( velsq ), fill_val=0 )
@@ -186,8 +233,9 @@ class profile( profile_base ):
 
     def rho( self, x, flag, *args ):
         #If you want another analytic profile
-        #if flag == s:
-        #    return profile
+        #if flag == "discsum":
+        #    return super().rho( x, "disc", args[ 0 ], args[ 1 ] ) +\
+        #           super().rho( x, "disc", args[ 2 ], args[ 3 ] );
         #else:
         if flag == "zsolve":
             return self.zsolve( )
@@ -276,18 +324,30 @@ class IC( gen_profiles_bin ):
         if kwargs.get( "use_background", True ):
             bg2d = background_source( )
             bg3d = background_source( )
+            bgdisc = background_source( )
+            bgnucbulge = background_source( )
+            spiral_mod = profile.config.get( "IC_profile", "spiral_mod", fallback=False )
             for source_key, source in profile.background_potential.background.components.items():
                 if source.dim == 2:
         #            if "disc" in source_key and spiralmod:
         #                continue
                     bg2d  = bg2d + source
+                    if spiral_mod:
+                        if "nsd" in source_key or "nsc" in source_key:
+                            bgnucbulge = bgnucbulge + source
+                        else:
+                            bgdisc = bgdisc + source
                 elif source.dim == 3:
                     bg3d  = bg3d + source
             
             if kwargs.get( "cmz", False ):
                 bg2d = ( bg3d.mass + bg2d.mass ) / bg2d.mass * bg2d
-            
-            self.enroll( bg2d.src_cgs, grid_cgs, 'bg' )
+
+            if spiral_mod:
+                self.enroll( bgdisc.src_cgs, grid_cgs, 'disc' )
+                self.enroll( bgnucbulge.src_cgs, grid_cgs, "nucbulge" )
+            else:
+                self.enroll( bg2d.src_cgs, grid_cgs, 'bg' )
             if len( profile.grid ) == 3:
                 self.enroll( bg3d.src_cgs, grid_cgs, 'bar' )
             else:

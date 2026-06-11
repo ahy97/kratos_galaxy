@@ -304,7 +304,7 @@ def plt_time_evo( output_data, **kwargs ):
             ax[ j, i ].set_ylabel( dat[ 'unit' ] )
             
             if i == 0:
-                ax[ j, i ].legend( )
+                ax[ j, i ].legend( loc='upper left' )
     return fig
 
 
@@ -320,7 +320,7 @@ def draw_obs_val( ax, dat, data, **kwargs ):
     return draw_bar_on( ax, dat, data, **kwargs )
 
 
-def plt_phase( d, ax=None, **kwargs ):
+def plt_phase( d, fig=None, ax=None, **kwargs ):
     enroll_mesh_tree( d )
     enroll_T( d )
     R_out = kwargs.get( "R_out", 1e32 )
@@ -329,6 +329,8 @@ def plt_phase( d, ax=None, **kwargs ):
     temperatures     = np.array( [] )
     masses          =  np.array( [] )
     weights         = np.array( [] )
+    cmap       = kwargs.get( "cmap", plt.get_cmap( 'turbo' ) )
+    show_cbar  = kwargs.get( "show_cbar", True )
     weightfunc = kwargs.get( "weightfunc", None )
     filterfunc = kwargs.get( "filterfunc", lambda bd : True )
     for b, bd in d.data.items(  ):
@@ -355,32 +357,50 @@ def plt_phase( d, ax=None, **kwargs ):
         weights=weights,
         bins=[rho_bins, T_bins],
     )
+    # --- Inherit norm from existing plot on ax, or build a new one ----------
+    existing_norm = None
+    if ax is not None and ax.collections:
+        existing_norm = ax.collections[-1].norm   # reuse last artist's norm
 
-    vmin     = kwargs.get( "vmin", np.min( counts[ counts > 0 ] ) )
-    vmax     = kwargs.get( "vmax", np.max( counts ) )
+    if existing_norm is not None:
+        # Pull vmin/vmax out of the inherited norm; kwargs can still override.
+        vmin = kwargs.get( "vmin", existing_norm.vmin )
+        vmax = kwargs.get( "vmax", existing_norm.vmax )
+    else:
+        vmin = kwargs.get( "vmin", np.min( counts[ counts > 0 ] ) )
+        vmax = kwargs.get( "vmax", np.max( counts ) )
+    #vmin     = kwargs.get( "vmin", np.min( counts[ counts > 0 ] ) )
+    #vmax     = kwargs.get( "vmax", np.max( counts ) )
     plot_contour = kwargs.get( "plot_contour", False )
     levels   = kwargs.get( "levels", 10 )
+    contour_fill = kwargs.get( "contour_fill", True )
     if ax is None:
         fig, ax = plt.subplots( 1, 1, figsize=figsize )
-    
+    if contour_fill:
+        contour_func = ax.contourf
+    else:
+        contour_func = ax.contour
     if plot_contour:
 
         xcenters = 0.5 * ( xbins[:-1] + xbins[1:] )
         ycenters = 0.5 * ( ybins[:-1] + ybins[1:] )
-        s = ax.contourf( xcenters, ycenters, counts.T, 
+        s = contour_func( xcenters, ycenters, counts.T, 
                          levels=10**np.linspace( np.log10( vmin ), np.log10( vmax ), levels ), 
-                         norm=LogNorm(vmin=vmin, vmax=vmax) )
+                         norm=LogNorm(vmin=vmin, vmax=vmax), cmap=cmap )
         norm = mpl.colors.LogNorm(vmin=s.cvalues.min(), vmax=s.cvalues.max())
         sm = plt.cm.ScalarMappable( norm=norm, cmap = s.cmap )
         sm.set_array([])
-        cbar = fig.colorbar(sm, ax=ax )#, ticks=s.levels)
+        if show_cbar:
+            cbar = fig.colorbar(sm, ax=ax )#, ticks=s.levels)
     else:
-        s = ax.hist2d( densities, temperatures, weights=weights, bins=[ rho_bins, T_bins ], norm=LogNorm(vmin=vmin, vmax=vmax) )
-        cbar = plt.colorbar(s[3])
-    cbar_label = kwargs.get( "cbar_label", r'Mass ($M_\odot$)' )
-    cbar.set_label( cbar_label )
+        s = ax.hist2d( densities, temperatures, weights=weights, bins=[ rho_bins, T_bins ], norm=LogNorm(vmin=vmin, vmax=vmax), cmap=cmap )
+        if show_cbar:
+            cbar = plt.colorbar(s[3])
+    if show_cbar:
+        cbar_label = kwargs.get( "cbar_label", r'Mass ($M_\odot$)' )
+        cbar.set_label( cbar_label )
     ax.set_xscale('log')
     ax.set_yscale('log')
     ax.set_xlabel(r'$\rho$ ($m_p$ cm$^{-3}$)')
     ax.set_ylabel(r'$T$ (K)')
-    return ax
+    return fig, ax

@@ -54,55 +54,100 @@ class galaxy_data( hydro_data.hydro_data ):
         return;
 
     def load_particles( self ):
+       
         self.bin_data.open(    );
-        x_arr = [  ];
-        v_arr = [  ];
-        m_arr = [  ];
-        mstar_arr = [ ];
-        sfr_arr = [  ];
-        age_arr = [  ];
-        Nsne_arr = [  ];
-        tcreate_arr = []
-        SF_delay_arr = [ ]
-        R_S0_arr = []
-        log_Q0_arr = []
-        for k in self.bin_data.hmap:
-            if not ( 'par_rank_' in k and '_x' in k ):
-                continue;
-            x_arr.append( self.bin_data.as_array\
-                          ( k ).reshape( -1, 3 ) );
-            m_arr.append( self.bin_data.as_array\
-             ( k.replace( 'x', 'prop' ) ) );
-            mstar_arr.append( self.bin_data.as_array\
-             ( k.replace( 'x', 'mstar' ) ) )
-            sfr_arr.append( self.bin_data.as_array
-                          ( k .replace( 'x', 'sfr' ) ) )
-            age_arr.append( self.bin_data.as_array 
-                          ( k .replace( 'x', 'age' ) ) )
-            Nsne_arr.append( self.bin_data.as_array 
-                          ( k .replace( 'x', 'Nsne' ), dtype='i' ) )
-            tcreate_arr.append( self.bin_data.as_array\
-             ( k.replace( 'x', 'tcreate' ) ) )
-            SF_delay_arr.append( self.bin_data.as_array\
-             ( k.replace( 'x', 'SFdelay' ) ) )
-            R_S0_arr.append( self.bin_data.as_array\
-             ( k.replace( 'x', 'Rs0' ) ) )
-            log_Q0_arr.append( self.bin_data.as_array\
-             ( k.replace( 'x', 'logQ0' ) ) )
-            v_arr.append( self.bin_data.as_array\
-             ( k.replace( 'x',  'dir' ) ).reshape( -1, 3 ) )
+        #x_arr = [  ];
+        #v_arr = [  ];
+        #m_arr = [  ];
+        #mstar_arr = [ ];
+        #sfr_arr = [  ];
+        #age_arr = [  ];
+        #Nsne_arr = [  ];
+        #tcreate_arr = []
+        #tcreate_mrg = []
+        #SF_delay_arr = [ ]
+        #R_S0_arr = []
+        #log_Q0_arr = []
+
+        names = { "x"    : { "name":"x", "dim":3 } , 
+                  "x0"    : { "name":"x0", "dim":3 } , 
+                  "prop" : { "name":"m", "dim":1 } ,
+                  "mstar": { "name":"mstar", "dim":1 },
+                  "sfr"  : { "name":"sfr", "dim":1 },
+                  "age"  : { "name":"age", "dim":1 },
+                  "Nsne" : { "name":"Nsne","dim":1, "dtype":"i" },
+                  "tcreate" : { "name":"tcreate", "dim":1 },
+                  "tcreatemrg" : { "name":"tcreatemrg", "dim":1 },
+                  "SFdelay" : { "name":"SFdelay", "dim":1 },
+                  "Rs0" : { "name":"RS0", "dim":1 },
+                  "logQ0" : { "name":"logQ0", "dim":1 },
+                  "dir" : { "name":"v", "dim":3 } }
+        #dat_names = [ ]
+        #dims      = [ ]
+        for bin_name, dat_name in names.items( ):
+            arr = [ ]
+            skip = False
+            for k in self.bin_data.hmap:
+                if not ( 'par_rank_' in k and ( '_x' in k and not '_x0' in k ) ):
+                    continue;
+                try:
+                    tst = self.bin_data.as_array( k.replace( 'x', bin_name ) )
+                except:
+                    print(f"{bin_name} not found")
+                    skip = True
+                    break; 
+                if "dtype" in dat_name:
+                    bin_data_arr = self.bin_data.as_array( k.replace( 'x', bin_name ), dtype=dat_name['dtype'] )
+                else:
+                    bin_data_arr = self.bin_data.as_array( k.replace( 'x', bin_name ) )
+
+                if dat_name[ 'dim' ] != 1:
+                    bin_data_arr = bin_data_arr.reshape( -1, dat_name[ 'dim' ] )
+                arr.append( bin_data_arr)
+                    
+            if skip:
+                continue
+            self.data[ f'particle_{ dat_name[ "name" ] }' ] = concatenate( arr );
+            #x_arr.append( self.bin_data.as_array\
+            #              ( k ).reshape( -1, 3 ) );
+            #m_arr.append( self.bin_data.as_array\
+            # ( k.replace( 'x', 'prop' ) ) );
+            #mstar_arr.append( self.bin_data.as_array\
+            # ( k.replace( 'x', 'mstar' ) ) )
+            #sfr_arr.append( self.bin_data.as_array
+            #              ( k .replace( 'x', 'sfr' ) ) )
+            #age_arr.append( self.bin_data.as_array 
+            #              ( k .replace( 'x', 'age' ) ) )
+            #Nsne_arr.append( self.bin_data.as_array 
+            #              ( k .replace( 'x', 'Nsne' ), dtype='i' ) )
+            #tcreate_arr.append( self.bin_data.as_array\
+            # ( k.replace( 'x', 'tcreate' ) ) )
+            #try:
+            #    tcreate_mrg.append( self.bin_data.as_array\
+            #     ( k.replace( 'x', 'tcreatemrg' ) ) )
+            #except:
+            #    pass
+            #SF_delay_arr.append( self.bin_data.as_array\
+            # ( k.replace( 'x', 'SFdelay' ) ) )
+            #R_S0_arr.append( self.bin_data.as_array\
+            # ( k.replace( 'x', 'Rs0' ) ) )
+            #log_Q0_arr.append( self.bin_data.as_array\
+            # ( k.replace( 'x', 'logQ0' ) ) )
+            #v_arr.append( self.bin_data.as_array\
+            # ( k.replace( 'x',  'dir' ) ).reshape( -1, 3 ) )
         #ss
-        self.data[ 'particle_x' ] = concatenate( x_arr );
-        self.data[ 'particle_v' ] = concatenate( v_arr );
-        self.data[ 'particle_m' ] = concatenate( m_arr );
-        self.data[ 'particle_mstar' ] = concatenate( mstar_arr );
-        self.data[ 'particle_sfr' ] = concatenate( sfr_arr );
-        self.data[ 'particle_age' ] = concatenate( age_arr );
-        self.data[ 'particle_Nsne' ] = concatenate( Nsne_arr );
-        self.data[ 'particle_tcreate' ] = concatenate( tcreate_arr );
-        self.data[ 'particle_SFdelay' ] = concatenate( SF_delay_arr );
-        self.data[ 'particle_RS0' ] = concatenate( R_S0_arr );
-        self.data[ 'particle_logQ0' ] = concatenate( log_Q0_arr );
+        #self.data[ 'particle_x' ] = concatenate( x_arr );
+        #self.data[ 'particle_v' ] = concatenate( v_arr );
+        #self.data[ 'particle_m' ] = concatenate( m_arr );
+        #self.data[ 'particle_mstar' ] = concatenate( mstar_arr );
+        #self.data[ 'particle_sfr' ] = concatenate( sfr_arr );
+        #self.data[ 'particle_age' ] = concatenate( age_arr );
+        #self.data[ 'particle_Nsne' ] = concatenate( Nsne_arr );
+        #self.data[ 'particle_tcreate' ] = concatenate( tcreate_arr );
+        #self.data[ 'particle_tcreatemrg' ] = concatenate( tcreate_mrg );
+        #self.data[ 'particle_SFdelay' ] = concatenate( SF_delay_arr );
+        #self.data[ 'particle_RS0' ] = concatenate( R_S0_arr );
+        #self.data[ 'particle_logQ0' ] = concatenate( log_Q0_arr );
     #
 def stitch_fields( d, fields ):
     db0   = d.data[ 'block_0' ];

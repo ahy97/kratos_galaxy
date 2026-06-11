@@ -48,12 +48,13 @@ M_bh        = 4e6    #units of Msol
 coord    = sph # cart = cartesian   ( x, y, z )
                # cyl  = cylindrical ( r, z, phi )
                # sph  = spherical   ( r, theta, phi )
-profile_flags  = disc zsolve #zsolve #profiles along each dimension
-                       #options: disc, exp, gauss, uniform, sech2, zsolve
+profile_flags  = usr_func # disc zsolve #zsolve #profiles along each dimension
+                       #options: disc, exp, gauss, uniform, sech2, zsolve, usr_func
+                       #if usr_func, custom usr function applied and overrides rhobase
                        #zsolve only applies for vertical
 
 ICname   = ../outputs/init_cond/cmz_init_H24.bin
-spiral_mod = True
+#spiral_mod = False #True
 [zsolve] #axisymmetry assumed, always using cylindrical coordinates
 rcut    = 2e4
 zcut    = 2e4
@@ -61,14 +62,17 @@ zcut    = 2e4
 [IC_hydro]
 mu      = 1.26
 Tdisc   = 1e4   #units of Kelvin
-rhobase = 6     #units of rho0
+rhobase = 6     #units of rho0. OVERRIDDEN BY usr_func
 metdisc = 3     #units of Z/Zsol
 metcgm  = 0.1   #units of Z/Zsol
-metzcut = 100   #units of l0
+metzcut = 700   #units of l0
 
 
 
-
+[disc1]
+scale_lengths = 4e3 7e3 #rm and rd, units of l0
+[disc2]
+scale_lengths = 1.2e4 e3 #rm and rd, units of l0
 [disc]
 scale_lengths = 1.5e3 7e3 #rm and rd, units of l0
 [exp]
