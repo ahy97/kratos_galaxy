@@ -9,10 +9,15 @@ from unit import units
 import hydro_data
 from hydro_data import enroll_mesh_tree
 from slice_plot import slice, recognize_vec
-
+import configparser
+from scipy.interpolate import interp1d
 
 class galaxy_data( hydro_data.hydro_data ):
     def tst_field( self, blk, fld, datfld, dtype = 'f' ):
+        """
+        Try to enroll *fld* into *datfld*; silently skip if the field
+        does not exist in the binary output.
+        """
         try:
             self.get_field( blk, fld, datfld,
                             dtype = dtype );
@@ -21,7 +26,11 @@ class galaxy_data( hydro_data.hydro_data ):
             pass;
         #
     #
-    def read_block_data( self, blk ):    
+    def read_block_data( self, blk ):
+        """
+        Read hydro conserved variables for a mesh block and compute
+        derived quantities  (entropy, thermal pressure, metallicity).
+        """
         dat = self.data[ blk ];
         if  not 'n_cell' in dat:
             self.read_block_geometry( blk );
@@ -30,8 +39,11 @@ class galaxy_data( hydro_data.hydro_data ):
         dat[ 'rho' ] = bd[ 0 ];
         dat[ 'ene' ] = bd[ 1 ];
         dat[ 'mom' ] = bd[ 2 : 5 ];
-        dat[ 'met' ] = bd[ 6 ] / dat[ 'rho' ];
-        dat[ 'met_fld' ] = bd[ 6 ]
+        try:
+            dat[ 'met' ] = bd[ 6 ] / dat[ 'rho' ];
+            dat[ 'met_fld' ] = bd[ 6 ]
+        except:
+            pass
         try:
             dat[ 'sne_fld' ] = bd[ 7 ]
         except:
@@ -39,7 +51,7 @@ class galaxy_data( hydro_data.hydro_data ):
         dat[ 'ent' ] = bd[ 5 ];
         gam1 = self.args( 'dynamics', 'gamma' ) - 1;      
         dat[ 'pre_ent' ] = bd[ 5 ] * dat[ 'rho' ]**gam1;
-
+        self.gam1 = gam1
 
         # DEBUG - static field output currently not working
         #self.tst_field( blk, 'mg_s_',     'fld_s' );
@@ -54,20 +66,11 @@ class galaxy_data( hydro_data.hydro_data ):
         return;
 
     def load_particles( self ):
-       
+        """
+        Load stellar / sink particle data from the binary output into
+        ``self.data`` under ``particle_*`` keys.
+        """
         self.bin_data.open(    );
-        #x_arr = [  ];
-        #v_arr = [  ];
-        #m_arr = [  ];
-        #mstar_arr = [ ];
-        #sfr_arr = [  ];
-        #age_arr = [  ];
-        #Nsne_arr = [  ];
-        #tcreate_arr = []
-        #tcreate_mrg = []
-        #SF_delay_arr = [ ]
-        #R_S0_arr = []
-        #log_Q0_arr = []
 
         names = { "x"    : { "name":"x", "dim":3 } , 
                   "x0"    : { "name":"x0", "dim":3 } , 
@@ -82,8 +85,7 @@ class galaxy_data( hydro_data.hydro_data ):
                   "Rs0" : { "name":"RS0", "dim":1 },
                   "logQ0" : { "name":"logQ0", "dim":1 },
                   "dir" : { "name":"v", "dim":3 } }
-        #dat_names = [ ]
-        #dims      = [ ]
+
         for bin_name, dat_name in names.items( ):
             arr = [ ]
             skip = False
@@ -108,48 +110,25 @@ class galaxy_data( hydro_data.hydro_data ):
             if skip:
                 continue
             self.data[ f'particle_{ dat_name[ "name" ] }' ] = concatenate( arr );
-            #x_arr.append( self.bin_data.as_array\
-            #              ( k ).reshape( -1, 3 ) );
-            #m_arr.append( self.bin_data.as_array\
-            # ( k.replace( 'x', 'prop' ) ) );
-            #mstar_arr.append( self.bin_data.as_array\
-            # ( k.replace( 'x', 'mstar' ) ) )
-            #sfr_arr.append( self.bin_data.as_array
-            #              ( k .replace( 'x', 'sfr' ) ) )
-            #age_arr.append( self.bin_data.as_array 
-            #              ( k .replace( 'x', 'age' ) ) )
-            #Nsne_arr.append( self.bin_data.as_array 
-            #              ( k .replace( 'x', 'Nsne' ), dtype='i' ) )
-            #tcreate_arr.append( self.bin_data.as_array\
-            # ( k.replace( 'x', 'tcreate' ) ) )
-            #try:
-            #    tcreate_mrg.append( self.bin_data.as_array\
-            #     ( k.replace( 'x', 'tcreatemrg' ) ) )
-            #except:
-            #    pass
-            #SF_delay_arr.append( self.bin_data.as_array\
-            # ( k.replace( 'x', 'SFdelay' ) ) )
-            #R_S0_arr.append( self.bin_data.as_array\
-            # ( k.replace( 'x', 'Rs0' ) ) )
-            #log_Q0_arr.append( self.bin_data.as_array\
-            # ( k.replace( 'x', 'logQ0' ) ) )
-            #v_arr.append( self.bin_data.as_array\
-            # ( k.replace( 'x',  'dir' ) ).reshape( -1, 3 ) )
-        #ss
-        #self.data[ 'particle_x' ] = concatenate( x_arr );
-        #self.data[ 'particle_v' ] = concatenate( v_arr );
-        #self.data[ 'particle_m' ] = concatenate( m_arr );
-        #self.data[ 'particle_mstar' ] = concatenate( mstar_arr );
-        #self.data[ 'particle_sfr' ] = concatenate( sfr_arr );
-        #self.data[ 'particle_age' ] = concatenate( age_arr );
-        #self.data[ 'particle_Nsne' ] = concatenate( Nsne_arr );
-        #self.data[ 'particle_tcreate' ] = concatenate( tcreate_arr );
-        #self.data[ 'particle_tcreatemrg' ] = concatenate( tcreate_mrg );
-        #self.data[ 'particle_SFdelay' ] = concatenate( SF_delay_arr );
-        #self.data[ 'particle_RS0' ] = concatenate( R_S0_arr );
-        #self.data[ 'particle_logQ0' ] = concatenate( log_Q0_arr );
-    #
+
 def stitch_fields( d, fields ):
+    """
+    Stitch mesh-block data onto a uniform Cartesian grid at the coarsest
+    (root) level for the given *fields*.
+
+    Parameters
+    ----------
+    d : hydro_data
+    fields : list of str
+        Field names to stitch.
+
+    Returns
+    -------
+    res : dict of {str: ndarray}
+        Stitched 3D arrays keyed by field name.
+    l : tuple
+        Shape of the stitched grid.
+    """
     db0   = d.data[ 'block_0' ];
     dx0   = array( [ x[ -1 ] - x[ 0 ] for \
                      x in db0[ 'x_f' ] ] );
@@ -173,6 +152,22 @@ def stitch_fields( d, fields ):
     return res, l;
 
 def refined_stitch(d, field=None ):
+    """
+    Stitch mesh-block data onto a uniform Cartesian grid at the finest
+    refinement level.
+
+    Parameters
+    ----------
+    d : hydro_data
+    field : str or None
+        Single field to stitch. If None, stitches the five primitive
+        hydro fields (rho, mom[0-2], ene).
+
+    Returns
+    -------
+    dict
+        ``{field: ndarray}`` plus ``"x_c"`` coordinate arrays.
+    """
     enroll_mesh_tree( d )
     logical_locations = array(list(d.tree.keys()))
     blocks = array(list(d.tree.values()))
@@ -270,43 +265,119 @@ def refined_stitch(d, field=None ):
     
     return stitched_data
 
+def enroll_mu( d, cool_file="../outputs/therm_tables/cooling_table.dat" ):
+    """
+    Enroll a mean molecular weight field ``mu`` from a cooling table.
+
+    Parameters
+    ----------
+    d : hydro_data
+    cool_file : str
+        Path to the cooling table config file.
+    """
+    config = configparser.ConfigParser(inline_comment_prefixes="#")
+    config.read( cool_file )
+    lg_e      = np.array( config.get( "cooling", "lg_e" ).split( " " ), dtype=float )
+    lg_mu_cgs = np.array( config.get( "cooling", "lg_mu_cgs" ).split( " " ), dtype=float )
+    mu   = 10**lg_mu_cgs / units.mp
+    f = interp1d( lg_e, mu, bounds_error=False, fill_value='extrapolate')
+    d.enroll_field( "mu", lambda bd: \
+                    f( np.log10( bd[ 'pre_ent' ] / d.gam1 * units.v0**2 ) ) )
+    return
+
 def enroll_sgn( d, fld, sgnfld='x' ):
+    """
+    Enroll signed components of a vector field: ``sgn{fld}[i] = fld[i] * sign(sgnfld[i])``.
+    """
     d.enroll_field( f'sgn{fld}', lambda bd : \
                        np.array( [ ( bd[ fld ][ i ] if bd[ fld ].ndim == bd[ sgnfld ].ndim else bd[ fld ] ) *
                                      np.sign( bd[ sgnfld ][ i ] )
                                      for i in range( len( bd[ sgnfld ] ) ) ] ) )
 
-def enroll_T( d, mu=1.26 ):
+def enroll_T( d, **kwargs ):
+    """
+    Enroll temperature fields ``T`` and ``T_ent``.
+
+    Supports constant mean molecular weight or tabulated ``mu`` from
+    a cooling table.
+
+    Parameters
+    ----------
+    d : hydro_data
+    mu_default : float
+        Constant mu value when ``use_const_mu=True``.
+    cool_file : str or None
+        Path to cooling table; ``None`` uses default.
+    use_const_mu : bool
+        If True, skip mu enrolment and use *mu_default*.
+    """
+    mu_default = kwargs.get( "mu_default", 1.26 )
+    cool_file  = kwargs.get( "cool_file", None )
+    use_const_mu = kwargs.get( "use_const_mu", False )
     t0     = d.args( "unit",    "time" );
     l0     = d.args( "unit",  "length" );
-    rho0   = d.args( "unit", "density" ); 
-    T_conv   = ( l0 / t0 )**2 * mu * units.mp / units.kb;
-    d.enroll_field( 'T', lambda bd : \
-        bd[ 'pre' ] / bd[ 'rho' ] * T_conv );
-    d.enroll_field( 'T_ent', lambda bd : \
-        bd[ 'pre_ent' ] / bd[ 'rho' ] * T_conv );
+    rho0   = d.args( "unit", "density" );
+    T_conv   = ( l0 / t0 )**2 * units.mp / units.kb# * mu;
+    if use_const_mu:
+        T_conv *= mu_default
+        d.enroll_field( 'T', lambda bd : \
+            bd[ 'pre' ] / bd[ 'rho' ] * T_conv );
+        d.enroll_field( 'T_ent', lambda bd : \
+            bd[ 'pre_ent' ] / bd[ 'rho' ] * T_conv );
+        return
+    else:
+        if cool_file is None:
+            enroll_mu( d )
+        else:
+            enroll_mu( d, cool_file )
+        d.enroll_field( 'T', lambda bd : \
+            bd[ 'pre' ] / bd[ 'rho' ] * T_conv * bd[ 'mu' ] );
+        d.enroll_field( 'T_ent', lambda bd : \
+            bd[ 'pre_ent' ] / bd[ 'rho' ] * T_conv * bd[ 'mu' ] );        
 
 def enroll_vel( d ):
+    """
+    Enroll the velocity field ``vel = mom / rho`` and its signed components.
+    """
     t0     = d.args( "unit",    "time" );
     l0     = d.args( "unit",  "length" );
     rho0   = d.args( "unit", "density" ); 
     d.enroll_field( f'vel', lambda bd : \
-                       np.array( [ bd[ 'mom' ][ i ] / bd[ 'rho' ][ i ] 
+                       np.array( [ bd[ 'mom' ][ i ] / bd[ 'rho' ] 
                                    for i in range( len( bd[ 'mom' ] ) ) ] ) )
     enroll_sgn( d, 'vel' )
+
+def enroll_mach_ent( d ):
+    """
+    Enroll the entropic Mach number minus one: ``mach_m1_ent = |v| / c_s_ent - 1``.
+    """
+    enroll_vel( d )
+    d.enroll_field( "mach_m1_ent", lambda bd: \
+     bd[ "v_mag" ]/ \
+     np.sqrt( ( bd[ 'gam1' ] + 1 ) * ( bd[ 'pre_ent' ] / bd[ 'rho' ] ) ) )
+    return
+
+def enroll_vphi( d ):
+    """
+    Enroll the azimuthal (cylindrical) velocity component.
+
+    v_phi = (v_y x - v_x y) / r  =  (mom_y x - mom_x y) / (rho r)
+
+    r = sqrt( x**2 + y**2 )  is computed per-cell using the cell-centre
+    coordinate arrays ``x_c[0]`` and ``x_c[1]``.
+    """
+    def _vphi( bd ):
+        Xb, Yb, Zb = np.meshgrid( bd['x_c'][0], 
+                                  bd['x_c'][1], 
+                                  bd['x_c'][2], indexing='ij' )
+        R = np.sqrt( Xb**2 + Yb**2 )
+        Phi = np.arctan2( Yb, Xb )
+        vphi = bd[ 'vel' ][ 0 ] * -np.sin( Phi ) + bd[ 'vel' ][ 1 ] * np.cos( Phi )
+        return vphi #/ bd[ 'rho' ]
     
-#def enroll_flux( d, fld, func=None ):
-#    t0     = d.args( "unit",    "time" );
-#    l0     = d.args( "unit",  "length" );
-#    rho0   = d.args( "unit", "density" ); 
-#    enroll_vel( d )
-#    if func is not None:
-#        d.enroll_field( fld, func )
-#    d.enroll_field( f'flux_{fld}', lambda bd : \
-#                               np.array([ bd[ 'vel' ][ i ] * bd[ 'dx0' ][ i ] *#np.prod( [ bd[ 'dx0' ][ j ] for j in range( len( bd[ 'vel' ] ) ) if j != i ] ) *
-#                                        ( bd[ fld ] if bd[ fld ].ndim < bd[ 'vel' ].ndim else bd[ fld ][ i ] )
-#                                          for i in range( len( bd[ 'vel' ] ) ) ] ) )
-#    enroll_sgn( d, f'flux_{fld}' )
+    d.enroll_field( 'v_phi', _vphi )
+
+
 def enroll_flux( d, fld, func=None ):
     """
     Enroll a mass-flux field for `fld` (typically density or a passive scalar).
@@ -355,6 +426,17 @@ def enroll_flux( d, fld, func=None ):
     # splitting respects the direction of each component independently
     enroll_sgn( d, f'flux_{fld}' )
 def map_particle_blk( d, *pflds ): 
+    """
+    Deposit particle quantities onto mesh blocks using exact sub-cell
+    overlap geometry (line-of-sight integration over particle prisms).
+
+    Parameters
+    ----------
+    d : hydro_data
+        Must have ``particle_x`` loaded.
+    *pflds : str
+        Particle field names to deposit (e.g. ``'particle_sfr'``).
+    """
     enroll_mesh_tree( d )
     from itertools import product
     pos     = d.data[ 'particle_x' ]

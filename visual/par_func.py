@@ -4,6 +4,14 @@ sys.path.append( "../base" )
 from unit import units
 
 def f_par_SFR( d, **kwargs ):
+    """
+    Total star-formation rate from sink particles within a cylinder.
+
+    Returns
+    -------
+    float
+        SFR in Msun/yr.
+    """
     x,   y,  z = d.data[ 'particle_x' ].T;
     sfr        = d.data[ 'particle_sfr' ].T;
     R = np.sqrt( x**2 + y**2 )
@@ -12,6 +20,14 @@ def f_par_SFR( d, **kwargs ):
     return np.sum( sfr[ ( R < R_out ) & ( np.abs( z ) < Z_out ) ] ) / units.t0 * units.m0 / units.modot * units.yr 
 
 def f_par_Mstar( d, **kwargs ):
+    """
+    Total stellar mass in sink particles within a cylinder.
+
+    Returns
+    -------
+    float
+        Stellar mass in Msun.
+    """
     x,   y,  z = d.data[ 'particle_x' ].T;
     R = np.sqrt( x**2 + y**2 )
     mstar      = d.data[ 'particle_mstar'].T
@@ -20,6 +36,13 @@ def f_par_Mstar( d, **kwargs ):
     return np.sum( mstar[ ( R < R_out ) & ( np.abs( z ) < Z_out ) ] ) * ( units.m0 / units.modot )
 
 def f_par_Nsne( d, **kwargs ):
+    """
+    Cumulative supernova count from sink particles within a cylinder.
+
+    Returns
+    -------
+    int
+    """
     x,   y,  z = d.data[ 'particle_x' ].T;
     R = np.sqrt( x**2 + y**2 )
     Nsne       = d.data[ 'particle_Nsne' ].T
@@ -28,6 +51,15 @@ def f_par_Nsne( d, **kwargs ):
     return np.sum( Nsne[ ( R < R_out ) & ( np.abs( z ) < Z_out ) ] ) ;
 
 def f_par_Mgas( d, **kwargs ):
+    """
+    Gas mass tracked by sink particles (total mass minus stellar mass)
+    within a cylinder.
+
+    Returns
+    -------
+    float
+        Gas mass in Msun.
+    """
     x,   y,  z = d.data[ 'particle_x' ].T;
     R = np.sqrt( x**2 + y**2 )
     m          = d.data[ 'particle_m' ].T;

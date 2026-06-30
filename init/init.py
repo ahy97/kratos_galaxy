@@ -18,6 +18,15 @@ class gen_profiles_bin( binary_io ):
 
     def enroll( self, func, coords, prefix,
                 field_names = None, coord_type  = 'sph' ):
+        """Evaluate functions on a grid and cache results for binary output.
+
+        Args:
+            func: Function or list of functions to evaluate.
+            coords: List of 1D coordinate arrays.
+            prefix (str): Key prefix for cached data.
+            field_names: Names for each function output (defaults to ['data']).
+            coord_type (str): Coordinate system label ('sph', 'cyl', 'cart').
+        """
         n_pts  = array( [ len( coords[ i ] ) for i in
                           range( len( coords ) ) ] );
         if  not isinstance( coord_type, byte ) :
@@ -153,6 +162,11 @@ class profile( profile_base ):
         return 
     
     def zsolve_init( self, **kwargs ):
+        """Configure the cylindrical grid for vertical hydrostatic solving.
+
+        Args:
+            **kwargs: Passed through for optional overrides.
+        """
         if self.flags[ 0 ] == 'zsolve':
             raise TypeError( "zsolve only applicable for z direction" )
         self.rcut = float( self.config.get( 'zsolve', 'rcut', fallback=2e4 ) )
@@ -163,6 +177,11 @@ class profile( profile_base ):
         return
     
     def usr_func( self ):
+        """User-defined density profile on the cylindrical grid (two-disc model).
+
+        Returns:
+            data_field of the density on cylgrid.mesh.
+        """
         Sigma1 = df( 53.1 * ( units.modot / units.m0 ) * ( units.pc / units.l0 )**-2, "m*l^-2" )
         z1 =  df( 85 * units.pc / units.l0  , "l")
         Rm1 = df( 4000 * units.pc / units.l0, "l")
@@ -178,6 +197,11 @@ class profile( profile_base ):
         return gd1 + gd2
 
     def usr_func_prime( self, **kwargs ):
+        """Radial derivative of the user-defined density profile.
+
+        Returns:
+            data_field of d(rho)/dR on cylgrid.mesh.
+        """
         Sigma1 = df( 53.1 * ( units.modot / units.m0 ) * ( units.pc / units.l0 )**-2, "m*l^-2" )
         z1 =  df( 85 * units.pc / units.l0  , "l")
         Rm1 = df( 4000 * units.pc / units.l0, "l")
@@ -193,6 +217,14 @@ class profile( profile_base ):
         return gd1 + gd2
 
     def calc_densprof( self, use_usr_func=False ):
+        """Compute the 3D density profile by interpolating from the cylindrical grid.
+
+        Args:
+            use_usr_func (bool): If True, use self.usr_func() instead of product of profiles.
+
+        Returns:
+            data_field with the density profile on the base grid.
+        """
         if use_usr_func:
             return self.cylgrid.interpolate_data( self, self.usr_func( ), fill_val=0 )
         else:
@@ -203,6 +235,14 @@ class profile( profile_base ):
             return self.cylgrid.interpolate_data( self, res, fill_val=0 ) #self.rhobase * np.prod( np.array( profs ), axis=0 )
     
     def calc_velprof( self, use_usr_func=False ):
+        """Compute the azimuthal velocity profile from the background potential.
+
+        Args:
+            use_usr_func (bool): If True, avoid pressure gradient correction.
+
+        Returns:
+            data_field with the velocity profile on the base grid.
+        """
         self.background_potential.coord_transform( self.cylgrid, fill_val=0 )
         potcyl = self.background_potential.phi_numeric * self.axsym_rat
         Rcyl   = self.cylgrid.mesh[ 0 ]
@@ -225,6 +265,11 @@ class profile( profile_base ):
         return self.cylgrid.interpolate_data( self, np.sqrt( velsq ), fill_val=0 )
         
     def calc_metprof( self ):
+        """Compute the metallicity profile (disc vs CGM based on height).
+
+        Returns:
+            data_field with metallicity values on the base grid.
+        """
         metprof = self.metdisc * np.ones( self.densprof.shape )
         self.coord_conv( "cyl" )
         metprof[ self.mesh[ 1 ] > self.metzcut ] = self.metcgm
@@ -232,20 +277,31 @@ class profile( profile_base ):
         return metprof
 
     def rho( self, x, flag, *args ):
-        #If you want another analytic profile
-        #if flag == "discsum":
-        #    return super().rho( x, "disc", args[ 0 ], args[ 1 ] ) +\
-        #           super().rho( x, "disc", args[ 2 ], args[ 3 ] );
-        #else:
+        """Evaluate density profile, extending parent with 'zsolve' flag.
+
+        Args:
+            x: Radial coordinate.
+            flag (str): Profile flag. Pass 'zsolve' for vertical hydrostatic solve.
+            *args: Scale parameters passed to the parent method.
+
+        Returns:
+            Profile value(s).
+        """
         if flag == "zsolve":
             return self.zsolve( )
         return super().rho( x, flag, *args )
 
     def rho_prime( self, x, flag, *args ):
-        #Don't forget to also define the derivative
-        #if flag == s:
-        #    return profile
-        #else:
+        """Evaluate density derivative, extending parent if needed.
+
+        Args:
+            x: Radial coordinate.
+            flag (str): Profile flag.
+            *args: Scale parameters passed to the parent method.
+
+        Returns:
+            Derivative value(s).
+        """
         return super().rho_prime( x, flag, *args )
     
     def zsolve( self ):
@@ -308,6 +364,14 @@ class profile( profile_base ):
         
 class IC( gen_profiles_bin ):
     def __init__( self, profile, file_name=None, cache_used=True, **kwargs ):
+        """Build and save the binary IC file from a profile object.
+
+        Args:
+            profile (profile): Profile instance holding density, velocity, metallicity.
+            file_name (str): Output filename (falls back to config).
+            cache_used (bool): Whether to cache read data in memory.
+            **kwargs: Additional options (use_background, cmz, spiral_mod, x3).
+        """
         if file_name is None:
             file_name = profile.config.get( "IC_profile", "ICname", fallback=None )
         super().__init__( file_name, cache_used )

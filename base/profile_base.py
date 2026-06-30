@@ -7,9 +7,27 @@ class profile_base( grid ):
     child of the "grid" class to account for numerically computed profiles
     """
     def __init__( self, **kwargs ):
+        """Initialize profile_base via parent grid initialization.
+
+        Args:
+            **kwargs: Passed through to grid.__init__.
+        """
         super().__init__( **kwargs )
         return
     def rho( self, x, flag, *args ):
+        """Evaluate a radial density profile.
+
+        Args:
+            x: Radial coordinate (scalar or array).
+            flag (str): Profile type ('disc', 'exp', 'gauss', 'uniform', 'sech2').
+            *args: Profile-specific scale parameters.
+
+        Returns:
+            Profile value(s) at x.
+
+        Raises:
+            ValueError if flag is unknown.
+        """
         if flag == 'disc':
             return np.exp( -args[ 0 ] / x - x / args[ 1 ] )
         if flag == 'exp':
@@ -23,6 +41,19 @@ class profile_base( grid ):
         raise ValueError( "Unknown radial profile flag: %s" %
                           flag )
     def rho_prime( self, x, flag, *args ):
+        """Evaluate the radial derivative of a density profile.
+
+        Args:
+            x: Radial coordinate (scalar or array).
+            flag (str): Profile type ('disc', 'exp', 'gauss', 'uniform', 'sech2').
+            *args: Profile-specific scale parameters.
+
+        Returns:
+            Derivative value(s) at x.
+
+        Raises:
+            ValueError if flag is unknown.
+        """
         if flag == 'disc':
             return self.rho( x, flag, *args ) * ( args[ 0 ] / x**2 - 1.0 / args[ 1 ] )
         if flag == 'exp':

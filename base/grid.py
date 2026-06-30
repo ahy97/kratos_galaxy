@@ -67,12 +67,21 @@ class grid( units ):
         return
     
     def grid_reinit( self ):
+        """Recompute grid, mesh, and coords from current parameters."""
         self.grid = self.grid_init( )
         self.mesh = self.grid_to_mesh( )
         self.coords = self.grid_to_coords( )
         return
 
     def range_to_data_field( self, range ):
+        """Convert x_range entries to data_field objects with length units.
+
+        Args:
+            range: Array of [lower, upper] bounds per dimension.
+
+        Returns:
+            list of data_field objects. Angular dimensions get dimensionless units.
+        """
         df_range = [ ]
         for i, j in enumerate( range ):
             range_unit = [ 0, 1, 0, 0 ]
@@ -82,7 +91,11 @@ class grid( units ):
         return df_range
     
     def config_init( self, flag ):
-        #Initialize grid from config file
+        """Initialize grid parameters from a config file section.
+
+        Args:
+            flag (str): Section key in the config for grid parameters.
+        """
         self.coord = self.config[ flag ][ 'coord' ]
         self.cmcoord = self.coord
         if self.coord not in [ 'cart', 'cyl', 'sph' ]:
@@ -105,9 +118,21 @@ class grid( units ):
         return        
 
     def n_tot( self ):
-        return list( self.n_cell + 2 * self.n_gh )
+        """Total number of cells including ghost cells, per dimension.
+
+        Returns:
+            list of int.
+        """
     
     def dim_check( self, *args ):
+        """Verify that all grid parameter arrays have the same length.
+
+        Args:
+            *args: Additional arrays to include in the consistency check.
+
+        Raises:
+            IndexError if any array lengths differ.
+        """
         dimcheck = [ self.spacing, self.x_range, self.n_cell, self.n_gh ]
         for i in args:
             dimcheck.append( i )
@@ -117,6 +142,11 @@ class grid( units ):
         return 
         
     def grid_init( self ):
+        """Build 1D grid arrays from spacing and range parameters.
+
+        Returns:
+            list of 1D arrays, one per dimension.
+        """
         xgrid = []
         for xrange, spacing, ncell, ngh in zip( self.x_range, self.spacing, self.n_cell, self.n_gh ):
             index = np.arange( ncell )
@@ -136,6 +166,17 @@ class grid( units ):
         return xgrid#[ ::-1 ]
     
     def log_spacing( eta, xmin, xmax, ncell ):
+        """Generate a logarithmically spaced 1D grid.
+
+        Args:
+            eta (float): Spacing ratio (cell width ratio between adjacent cells).
+            xmin: Lower bound (data_field with length units).
+            xmax: Upper bound (data_field with length units).
+            ncell (int): Number of cells.
+
+        Returns:
+            data_field with the log-spaced grid points.
+        """
         lx = xmax - xmin
         index = np.arange( ncell )
         spacing_base = lx * ( 1 - eta ) / ( 1 - eta**ncell )
@@ -150,6 +191,11 @@ class grid( units ):
     # grid  : 1D arrays for each dimension
 
     def grid_to_mesh( self ):
+        """Convert 1D grid arrays to an ND meshgrid.
+
+        Returns:
+            list of ND arrays (one per dimension) via numpy.meshgrid.
+        """
         if len( self.grid ) == 1:
             return self.grid
         else:
@@ -158,6 +204,11 @@ class grid( units ):
         #return self.range_to_data_field( meshes )#np.array( np.meshgrid( *self.grid, indexing='ij' ) )
     
     def grid_to_coords( self ):
+        """Flatten the mesh into a list of (N_points,) coordinate arrays.
+
+        Returns:
+            data_field with shape (N_points, N_dim) containing all points.
+        """
         if len( self.grid ) == 1:
             return self.grid
         else:
@@ -166,6 +217,11 @@ class grid( units ):
             return data_field( coords, [ m.unit for m in mesh ] )
     
     def mesh_to_coords( self ):
+        """Flatten the current mesh into a list of (N_points,) coordinate arrays.
+
+        Returns:
+            data_field with the stacked mesh coordinates.
+        """
         if len( self.grid ) == 1:
             return self.grid
         else:
@@ -208,6 +264,14 @@ class grid( units ):
         return
 
     def cyl_to_sph( self, *args ):
+        """Convert cylindrical (R, z, [phi]) to spherical (r, theta, [phi]).
+
+        Args:
+            *args: Mesh arrays in cylindrical coords.
+
+        Returns:
+            list of data_field arrays in spherical coords.
+        """
         conv = [ data_field( np.zeros( i.data.shape ), i.unit ) for i in args ]
         conv[ 0 ] = np.sqrt( args[ 0 ]**2 + args[ 1 ]**2 )
         conv[ 1 ] = np.arccos( args[ 1 ] / conv[ 0 ] )
@@ -216,6 +280,14 @@ class grid( units ):
         return conv
 
     def sph_to_cyl( self, *args ):
+        """Convert spherical (r, theta, [phi]) to cylindrical (R, z, [phi]).
+
+        Args:
+            *args: Mesh arrays in spherical coords.
+
+        Returns:
+            list of data_field arrays in cylindrical coords.
+        """
         conv = [ data_field( np.zeros( i.data.shape ), i.unit ) for i in args ]
         conv[ 0 ] = args[ 0 ] * np.sin( args[ 1 ] )
         conv[ 1 ] = args[ 0 ] * np.cos( args[ 1 ] )
@@ -224,6 +296,14 @@ class grid( units ):
         return conv
     
     def cyl_to_cart( self, *args ):
+        """Convert cylindrical (R, [z], phi) to cartesian (x, y, [z]).
+
+        Args:
+            *args: Mesh arrays in cylindrical coords.
+
+        Returns:
+            list of data_field arrays in cartesian coords.
+        """
         conv = [ data_field( np.zeros( i.data.shape ), i.unit ) for i in args ]
         conv[ 0 ] = args[ 0 ] * np.cos( args[ -1 ] )
         conv[ 1 ] = args[ 0 ] * np.sin( args[ -1 ] )
@@ -232,6 +312,14 @@ class grid( units ):
         return conv
             
     def cart_to_cyl( self, *args ):
+        """Convert cartesian (x, y, [z]) to cylindrical (R, phi, [z]).
+
+        Args:
+            *args: Mesh arrays in cartesian coords.
+
+        Returns:
+            list of data_field arrays in cylindrical coords.
+        """
         conv = [ data_field( np.zeros( i.data.shape ), i.unit ) for i in args ]
         conv[ 0 ] = np.sqrt( args[ 0 ]**2 + args[ 1 ]**2 ) 
         conv[ -1 ] = np.arctan2( args[ 1 ], args[ 0 ] )
@@ -250,6 +338,11 @@ class grid( units ):
     
     # Trivial function replacing current grid with a new grid. To be used by obj classes for interpolation purposes
     def copy_from( self, newgrid ):
+        """Copy all grid attributes from another grid instance.
+
+        Args:
+            newgrid (grid): Source grid to copy from.
+        """
         self.coord    = newgrid.coord
         self.cmcoord  = newgrid.cmcoord
         self.spacing  = newgrid.spacing
@@ -299,6 +392,16 @@ class grid( units ):
         return
     
     def interpolate_data( self, newgrid, data, fill_val=0 ):
+        """Interpolate data from self's coordinates onto newgrid.
+
+        Args:
+            newgrid (grid): Target grid.
+            data (data_field): Data defined on self's mesh.
+            fill_val: Fill value for points outside the convex hull.
+
+        Returns:
+            data_field interpolated onto newgrid, preserving original units.
+        """
         to_newgrid = LinearNDInterpolator( self.coords, data.flatten(), fill_value = fill_val )
         newgrid.coord_conv( self.coord )
         transformed_data = to_newgrid( newgrid.coords ).reshape( newgrid.mesh[ 0 ].shape )

@@ -13,6 +13,17 @@ elements_atomic_weights = elements.elements_atomic_weights
 elements_solar_abundance = elements.elements_solar_abundance
 
 def process_ion_file( ion_list, uniqueinds ):
+    """
+    Parse CLOUDY .ion file, fix ion-name formatting, and group ion fractions per grid point.
+
+    Args:
+        ion_list: list of strings from .ion file
+        uniqueinds: indices of unique (T, n_H, Z) parameter combinations
+
+    Returns:
+        ion_array: np.array of cleaned ion strings
+        ion_ind_groups: np.array of ion index groups, one per unique grid point
+    """
     ion_list_2 = []
     for txt in ion_list:
         x = re.findall("\d-", txt)
@@ -40,6 +51,20 @@ def process_ion_file( ion_list, uniqueinds ):
     return ion_array, ion_ind_groups
             
 def get_mu( ovr_data, ion_list, abn_data, param_grid ):
+    """
+    Compute mean molecular weight, free electron density, and H ion fraction from CLOUDY output.
+
+    Args:
+        ovr_data: overall data array (T, n_H, Z per row)
+        ion_list: list of ion fraction strings from .ion file
+        abn_data: abundance data array (log10 abundances)
+        param_grid: (T, n_H, Z) parameter grid
+
+    Returns:
+        mu_list: mean molecular weight per grid point
+        free_edens_list: free electron density per grid point
+        H_ion_frac: H ion fraction per grid point
+    """
     uniqueinds = np.unique(param_grid,return_index=True,axis=0)[1]
     abn        = abn_data[uniqueinds]
     ovr        = ovr_data[uniqueinds]
@@ -141,6 +166,16 @@ def load_cloudy( dir, fname, gamma=5/3, save_path=None ):#"obj/cloudy_data.pkl" 
     return dat
 
 def make_interpolators( cloudy_data, save_path=None ):
+    """
+    Build scipy LinearNDInterpolators for cooling, heating, and mean molecular weight.
+
+    Args:
+        cloudy_data: dict from load_cloudy() with params_coord, coolrate, heatrate, lg_mu_cgs
+        save_path: if given, pickle interpolators to this path under obj/
+
+    Returns:
+        int_dat: dict with cool_int, heat_int, lg_mu_cgs_int interpolators
+    """
     params_coord = cloudy_data[ "params_coord" ]
     crate        = cloudy_data[ "coolrate"     ]
     hrate        = cloudy_data[ "heatrate"     ]
@@ -160,7 +195,16 @@ def make_interpolators( cloudy_data, save_path=None ):
     return int_dat
 
 def write_table_cloudy( cloudy_data, int_data, interp_range, filename, **kwargs ):
+    """
+    Evaluate interpolators on a rectilinear grid and write a cooling/heating table to file.
 
+    Args:
+        cloudy_data: dict from load_cloudy()
+        int_data: dict from make_interpolators()
+        interp_range: [lg_met, lg_rho, lg_eg] 1D arrays defining the rectilinear evaluation grid
+        filename: output .dat path
+        **kwargs: reduce_mu_interp (bool), rho_rep, met_rep for 1D mu approximation
+    """
     params_coord = cloudy_data[ "params_coord" ]
     crate        = cloudy_data[ "coolrate"     ]
     hrate        = cloudy_data[ "heatrate"     ]
@@ -186,8 +230,10 @@ def write_table_cloudy( cloudy_data, int_data, interp_range, filename, **kwargs 
     if reduce_mu_interp:
         rho_rep = kwargs.get( "rho_rep", 1.6e-24 )
         met_rep = kwargs.get( "met_rep", 1 )
-        rhoind = np.argmin( np.abs( 10**rect_lg_rho_const - 1 ) - rho_rep )
-        metind = np.argmin( np.abs( 10**rect_lg_met_const - 1 ) - met_rep )
+        rhoind = np.argmin( np.abs( 10**rect_lg_rho_const - rho_rep ) )
+        metind = np.argmin( np.abs( 10**rect_lg_met_const - met_rep ) )
+        print( rhoind, metind )
+        #print( 10**rect_lg_rho_const, 10**rect_lg_met_const  )
         mu_coord_1D = np.array([rect_lg_eg_const,
                         np.ones( rect_lg_eg_const.shape ) * rect_lg_rho_const[ rhoind ],                        
                         np.ones( rect_lg_eg_const.shape ) * rect_lg_met_const[ metind ],

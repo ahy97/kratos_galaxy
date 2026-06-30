@@ -7,6 +7,12 @@ class binary_io:
     ########################################################
     # Initialization and finalization
     def __init__( self,    file_name, cache_used = True ):
+        """Initialize binary I/O handler.
+
+        Args:
+            file_name (str): Path to the binary file.
+            cache_used (bool): Whether to cache read data in memory.
+        """
         self. file_name =  file_name;
         self.    __dmap =  dict(   );
         self.      hmap =  dict(   );
@@ -16,19 +22,41 @@ class binary_io:
         self.    stream =       None;
     #
     def set_stream( self, stream ):
+        """Set the binary stream directly (used for merging).
+
+        Args:
+            stream: A file-like binary stream.
+        """
         self.stream     = stream  ;
     #
     def get_size_t( self, bin_data = None ):
+        """Read a size_t-width integer from the stream.
+
+        Args:
+            bin_data (bytes, optional): Pre-read bytes, otherwise reads from stream.
+
+        Returns:
+            int.
+        """
         if  bin_data is None:
             bin_data =  self.stream.read( self.s_size_t );
         return int.from_bytes ( bin_data, self.  endian );
     #
     def get_char_t( self, bin_data = None ):
+        """Read a single byte from the stream as an integer.
+
+        Args:
+            bin_data (bytes, optional): Pre-read byte, otherwise reads from stream.
+
+        Returns:
+            int (0-255).
+        """
         if  bin_data is None:
             bin_data =  self.stream.read            ( 1 );
         return int.from_bytes ( bin_data, self.  endian );
     #
     def open( self ):
+        """Open the binary file for reading and parse the header map."""
         if self.stream is not None:
             return;
         #
@@ -54,17 +82,30 @@ class binary_io:
         return;
     #
     def close( self ):
+        """Close the binary file stream if open."""
         if  self.stream is not None:
             self.stream.close(  );
             self.stream =    None;
         return;
     #
     def __enter__( self ):
+        """Context manager entry: open the file.
+
+        Returns:
+            self.
+        """
         self.open(  );
         return self;
     #
     
     def __exit__ ( self, etype, evalue, traceback ):
+        """Context manager exit: close the file and print any exception info.
+
+        Args:
+            etype: Exception type (or None).
+            evalue: Exception value (or None).
+            traceback: Traceback object (or None).
+        """
         self.close(  );
         if etype is not None:
             print( etype, evalue, traceback );
@@ -73,6 +114,14 @@ class binary_io:
     ########################################################
     # Data access
     def __getitem__  ( self,    key ):
+        """Retrieve raw binary data for a given key.
+
+        Args:
+            key (str): Data key from the header map.
+
+        Returns:
+            bytes of the stored binary data.
+        """
         if  key in self.__dmap:
             return self.__dmap[ key ];
         #
@@ -85,6 +134,7 @@ class binary_io:
         return bin_data;
     #
     def read( self ):
+        """Read all data from the file into the memory cache."""
         for key in self.hmap:
             size, u_size, offset = self.hmap     [  key ];
             self.stream.seek   ( offset, 0 );
@@ -92,6 +142,15 @@ class binary_io:
         #
     #
     def as_array( self, key, dtype  = 'f' ):
+        """Interpret cached binary data as a numpy array.
+
+        Args:
+            key (str): Data key.
+            dtype (str): numpy dtype character (default 'f' for float32).
+
+        Returns:
+            ndarray.
+        """
         u_size  = self.hmap[ key ][ 1 ];
         return  frombuffer( self[ key ], dtype = \
                             '<%s%d' %  ( dtype, u_size ) );
@@ -99,6 +158,13 @@ class binary_io:
     ########################################################
     # Write data to file
     def cache( self, key, data, dtype = None ):
+        """Store data in the memory cache for later writing.
+
+        Args:
+            key (str): Data key.
+            data: Array-like data to store.
+            dtype: numpy dtype for serialization.
+        """
         dat   = array( data, dtype = dtype ).flatten(  );
         usize = len( dat[ 0 ].tobytes(  ) );
         size  = dat.size * usize;
@@ -108,6 +174,12 @@ class binary_io:
         return;
     #
     def merge( self, src, skip_keys = [  ] ):
+        """Merge data from another binary_io instance into this one.
+
+        Args:
+            src (binary_io or str): Source instance or filename to merge from.
+            skip_keys (list): Keys to skip when merging.
+        """
         if  isinstance( src, str ):
             src = binary_io( src );
         if  src.stream is None:
@@ -128,6 +200,7 @@ class binary_io:
         return;
     #
     def save( self ):
+        """Write all cached data to the binary file, building the header map."""
         self.stream = open( self.file_name, 'wb' );
         self.stream . seek( 0, 0 );
 

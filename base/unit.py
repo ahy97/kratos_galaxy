@@ -4,10 +4,23 @@ import configparser
 class classproperty:
     """Descriptor that works as both a property (on instances) and a classmethod (on the class)."""
     def __init__(self, func):
+        """Store the wrapped function.
+
+        Args:
+            func: The function to be used as a class-level property.
+        """
         self.func = func
 
     def __get__(self, obj, cls):
-        # Works whether called on an instance or the class directly
+        """Return the result of calling the stored function with the class.
+
+        Args:
+            obj: Instance (unused).
+            cls: The class on which the descriptor is accessed.
+
+        Returns:
+            The return value of self.func(cls).
+        """
         return self.func(cls)
 
 class units:
@@ -69,20 +82,31 @@ class units:
     #    return data_field( units.G / ( units.l0**3 / units.t0**2 / units.m0 ), [ -1, 3, -2,  0 ] )
     @classproperty
     def m0(cls):
+        """Code unit mass: rho0 * l0^3."""
         return cls.rho0 * cls.l0**3
 
     @classproperty
     def v0(cls):
+        """Code unit velocity: l0 / t0."""
         return cls.l0 / cls.t0
 
     @classproperty
     def sigma0(cls):
+        """Code unit surface density: rho0 * l0."""
         return cls.rho0 * cls.l0
 
     @classproperty
     def G_code(cls):
+        """Gravitational constant in code units [M^-1 L^3 T^-2]."""
         return data_field(cls.G / (cls.l0**3 / cls.t0**2 / cls.m0), [-1, 3, -2, 0])
+
     def read_config( config ):
+        """Read unit base values from the given ConfigParser config.
+
+        Args:
+            config: configparser.ConfigParser object with a 'unit' section
+                    containing keys 'rho0', 'l0', 't0'.
+        """
         units.config = config
         units.rho0 = float( units.config[ 'unit' ][ 'rho0'] )
         units.l0   = float( units.config[ 'unit' ][ 'l0'  ] )

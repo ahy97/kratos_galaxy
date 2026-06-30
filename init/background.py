@@ -37,6 +37,11 @@ class background_source( source ):
         return
 
     def getmass( self ):
+        """Numerically integrate the source density to compute total mass.
+
+        Returns:
+            float: Total mass (code units).
+        """
         rmax_intg = float( self.config.get( 'background_mass', 'rmax_intg', fallback=1e5 ) )
         if self.dim == 2:
             mass, err = dblquad(
@@ -55,6 +60,14 @@ class background_source( source ):
         return mass
         
     def __add__( self, obj ):
+        """Add two background sources, summing masses.
+
+        Args:
+            obj (background_source): Source to add.
+
+        Returns:
+            background_source with summed densities and masses.
+        """
         source_sum = super().__add__( obj )
         if source_sum.dummy_flag:
             new_mass = 0
@@ -65,10 +78,19 @@ class background_source( source ):
                                   mass = new_mass,
                                   unit = source_sum.unit )
     def __radd__( self, obj ):
+        """Reverse add: delegate to __add__."""
         return self.__add__( obj )
     
     
     def __mul__( self, scalar ):
+        """Scale background source density and mass by a scalar.
+
+        Args:
+            scalar (float): Multiplicative factor.
+
+        Returns:
+            background_source with scaled density and mass.
+        """
         source_scaled = super().__mul__( scalar )
         new_mass = self.mass * scalar
         return background_source( func = source_scaled.dens,
@@ -76,6 +98,7 @@ class background_source( source ):
                                   mass = new_mass,
                                   unit = source_scaled.unit )
     def __rmul__( self, scalar ):
+        """Reverse multiply: delegate to __mul__."""
         return self.__mul__( scalar )
         
 
@@ -162,7 +185,15 @@ class background( units ):
         
 
 
-    def bar_portail( self, r, theta, phi ): #sormani 2022 + portail 2017
+    def bar_portail( self, r, theta, phi ):
+        """Bar+portail density profile (Sormani 2022 + Portail 2017).
+
+        Args:
+            r, theta, phi: Spherical coordinates (code units).
+
+        Returns:
+            Density at the given point (code units).
+        """
         def bar1( x, y, z ):
             rho_1 = 0.316 * 10**10 * self.modot * ( 1000 * self.pc )**-3 / self.rho0
             x_1   = 490 * self.pc / self.l0
@@ -234,7 +265,15 @@ class background( units ):
         rhobar_3 = barn( x, y, z, params3 )
         return rhobar_1 + rhobar_2 + rhobar_3
 
-    def bulge_s19( self, r, theta ): #sormani 2019
+    def bulge_s19( self, r, theta ):
+        """Bulge density profile (Sormani 2019).
+
+        Args:
+            r, theta: Spherical coordinates (code units).
+
+        Returns:
+            Density at the given point (code units).
+        """
         rhob0 = 9.5E4 * self.rho1 / self.rho0
         alpha = 1.8
         acut  = 500.  * self.pc   / self.l0
@@ -246,7 +285,15 @@ class background( units ):
         a = ( R**2 + z**2 / qb**2 )**0.5
         return ( rhob0 / ( 1 + ( a / a0 ) )**alpha ) * np.exp( -( a / acut )**2 )
 
-    def disc_s19( self, r, theta ): #sormani 2019
+    def disc_s19( self, r, theta ):
+        """Disc density profile (Sormani 2019).
+
+        Args:
+            r, theta: Spherical coordinates (code units).
+
+        Returns:
+            Density at the given point (code units).
+        """
         sigmaunit = self.modot / self.pc**2
         sigma1    = 572.  * sigmaunit / self.sigma0
         Rd1       = 2900. * self.pc / self.l0
@@ -260,7 +307,15 @@ class background( units ):
         return ( sigma1 / 2. / z1 ) * np.exp( -np.abs( z ) / z1 - R / Rd1 ) \
              + ( sigma2 / 2. / z2 ) * np.exp( -np.abs( z ) / z2 - R / Rd2 )
 
-    def disc_m17( self, r, theta ): #mcmillan 2017
+    def disc_m17( self, r, theta ):
+        """Disc density profile (McMillan 2017).
+
+        Args:
+            r, theta: Spherical coordinates (code units).
+
+        Returns:
+            Density at the given point (code units).
+        """
         z = r * np.cos( theta )
         R = r * np.sin( theta )
         sigma = [ 2.2e9 * self.modot * ( 1000 * self.pc )**-2 / self.sigma0,
@@ -279,7 +334,15 @@ class background( units ):
                                 np.abs( z ) / h[ j ] )
         return rhodisk
 
-    def disc_s22( self, r, theta ): #sormani 2022
+    def disc_s22( self, r, theta ):
+        """Disc density profile (Sormani 2022).
+
+        Args:
+            r, theta: Spherical coordinates (code units).
+
+        Returns:
+            Density at the given point (code units).
+        """
         z = r * np.cos( theta )
         R = r * np.sin( theta )
         sigma_0 = 0.103 * 10**10 * self.modot * ( 1000 * self.pc )**-2 / self.sigma0
@@ -295,7 +358,15 @@ class background( units ):
         return comp1 * comp2 * comp3 * comp4
     
 
-    def nsd_s20( self, r, theta ): #sormani 2020
+    def nsd_s20( self, r, theta ):
+        """Nuclear stellar disc density profile (Sormani 2020).
+
+        Args:
+            r, theta: Spherical coordinates (code units).
+
+        Returns:
+            Density at the given point (code units).
+        """
         rhounit = self.modot / ( 1000 * self.pc )**3
 
         q = 0.37
@@ -313,7 +384,15 @@ class background( units ):
 
         return rho_1 * np.exp( -( a / R1 )**n1 ) + rho_2 * np.exp( -( a / R2 )**n2 )
 
-    def nsc_s20( self, r, theta ): #sormani 2020
+    def nsc_s20( self, r, theta ):
+        """Nuclear star cluster density profile (Sormani 2020).
+
+        Args:
+            r, theta: Spherical coordinates (code units).
+
+        Returns:
+            Density at the given point (code units).
+        """
         z = r * np.cos( theta )
         R = r * np.sin( theta ) 
         q = 0.73
@@ -325,7 +404,15 @@ class background( units ):
         comp2 = a0 / ( a**gamma * ( a + a0 )**( 4 - gamma ) )
         return comp1 * comp2
     
-    def bar_s19( self, r, theta, phi ): #sormani 2019
+    def bar_s19( self, r, theta, phi ):
+        """Bar density profile (Sormani 2019).
+
+        Args:
+            r, theta, phi: Spherical coordinates (code units).
+
+        Returns:
+            Density at the given point (code units).
+        """
         rhob1 = 16. * self.rho1 / self.rho0
         rhob2 = 3.  * self.rho1 / self.rho0
         ab1 = 300.  * self.pc   / self.l0
@@ -345,7 +432,15 @@ class background( units ):
         return rhob1 * np.exp( -a1 / ab1 ) + rhob2 * np.exp( -a2 / ab2 )
 
 
-    def disc_h24( self, r, theta ): #hunter 2024 equation 13 ( typo - h1 is z1, h2 is z2 )
+    def disc_h24( self, r, theta ):
+        """Disc density profile (Hunter 2024).
+
+        Args:
+            r, theta: Spherical coordinates (code units).
+
+        Returns:
+            Density at the given point (code units).
+        """
         z = r * np.cos( theta )
         R = r * np.sin( theta ) 
 
@@ -366,6 +461,14 @@ class background( units ):
 
 
     def halo( self, r ):
+        """NFW-like halo density profile.
+
+        Args:
+            r: Radial coordinate (code units).
+
+        Returns:
+            Density at the given point (code units).
+        """
         x = r / self.r_halo
         return self.rho_halo / x / ( 1 + x )**2
 

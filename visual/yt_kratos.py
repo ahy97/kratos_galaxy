@@ -16,17 +16,40 @@ sys.path.append(os.path.join(os.path.dirname(__file__), "../base"))
 sys.path.append(os.path.join(os.path.dirname(__file__), "../init"))
 from hydro_data import enroll_mesh_tree
 from unit import units
+from hydro_data_gal import enroll_T
 
-def load_kratos_yt( d, gamma=5./3., fld_extra = [], **kwargs ):
+def load_kratos_yt( d, gamma=5./3., fld_extra = [], iso=False, **kwargs ):
+    """
+    Load Kratos simulation data into yt by converting to an HDF5 buffer
+    that mimics the athena++ athdf format.
+
+    Parameters
+    ----------
+    d : hydro_data
+        Kratos simulation data object.
+    gamma : float
+        Adiabatic index (default 5/3).
+    fld_extra : list of str
+        Extra field names to include beyond the standard hydro fields.
+    iso : bool
+        If True, assume isothermal EOS (excludes entropy, metallicity, etc.).
+    **kwargs
+        Passed to ``yt.load``.
+
+    Returns
+    -------
+    yt.Dataset
+    """
     if "units_override" not in kwargs:
         kwargs["units_override"] = {
                                       "length_unit"    : ( units.l0, "cm" ),
                                       "time_unit"      : ( units.t0, "s"  ),
                                       "mass_unit"      : ( units.m0, "g"  ),
                                     }
-        
     enroll_mesh_tree( d )
-    buf = kratos_to_hdf5( d, fld_extra = fld_extra, gamma=gamma )
+    if not iso:
+        enroll_T( d )
+    buf = kratos_to_hdf5( d, fld_extra = fld_extra, gamma=gamma, iso=iso )
     with tempfile.NamedTemporaryFile( suffix=".athdf", delete=True ) as tmp:
         tmp.write( buf.getvalue() )
         tmp.flush()
@@ -36,7 +59,26 @@ def load_kratos_yt( d, gamma=5./3., fld_extra = [], **kwargs ):
     #    os.remove(f"{filename}.athdf")
     return ds
 
-def kratos_to_hdf5( d, fld_extra = [], gamma=5./3. ):
+def kratos_to_hdf5( d, fld_extra = [], gamma=5./3., iso=False ):
+    """
+    Convert Kratos mesh-block data to an in-memory HDF5 file structured
+    like an athena++ athdf output, returned as a BytesIO buffer.
+
+    Parameters
+    ----------
+    d : hydro_data
+        Kratos simulation data object.
+    fld_extra : list of str
+        Extra field names to pack into the HDF5 dataset.
+    gamma : float
+        Adiabatic index.
+    iso : bool
+        If True, isothermal mode (reduced variable set).
+
+    Returns
+    -------
+    io.BytesIO
+    """
     buf = io.BytesIO()
     file = h5py.File( buf, "w" )
     #file = h5py.File( f"{filename}.athdf", "w" )
@@ -45,7 +87,9 @@ def kratos_to_hdf5( d, fld_extra = [], gamma=5./3. ):
     xf     = []
     xc     = []
     cons   = []
-    names_base = np.array( [ b'dens', b'Etot', b'mom1', b'mom2', b'mom3', b'entropy', b'metallicity', b'pressure' ], dtype=np.bytes_ )
+    names_base = np.array( [ b'dens', b'Etot', b'mom1', b'mom2', b'mom3', b'entropy', b'metallicity', b'pressure', b'temperature' ], dtype=np.bytes_ )
+    if iso:
+        names_base = np.array( [ b'dens', b'Etot', b'mom1', b'mom2', b'mom3' ], dtype=np.bytes_ )
     var_names_extra = np.array( [ i for i in fld_extra ], dtype=np.bytes_ )
     names = np.concatenate( ( names_base, var_names_extra ) ) 
     for key, bd in d.data.items( ):
@@ -55,9 +99,16 @@ def kratos_to_hdf5( d, fld_extra = [], gamma=5./3. ):
         logic.append( bd[ 'i_logic' ])
         xf.append( bd[ 'x_f' ] )
         xc.append( bd[ 'x_c' ] )
-        con_arr = [ bd[ 'rho' ]     , bd[ 'ene' ]     , bd[ 'mom' ][ 0 ],
-                    bd[ 'mom' ][ 1 ], bd[ 'mom' ][ 2 ], bd[ 'ent' ]     ,
-                    bd[ 'met' ]     , bd[ 'pre_ent'] ]
+        if iso:
+            con_arr = [ bd[ 'rho' ]     , bd[ 'ene' ]     , bd[ 'mom' ][ 0 ],
+                        bd[ 'mom' ][ 1 ], bd[ 'mom' ][ 2 ] ]
+        else:
+            t0     = d.args( "unit",    "time" );
+            l0     = d.args( "unit",  "length" );
+            T_conv   = ( l0 / t0 )**2 * units.mp / units.kb
+            con_arr = [ bd[ 'rho' ]     , bd[ 'ene' ]     , bd[ 'mom' ][ 0 ],
+                        bd[ 'mom' ][ 1 ], bd[ 'mom' ][ 2 ], bd[ 'ent' ]     ,
+                        bd[ 'met' ]     , bd[ 'pre_ent']  , bd[ 'pre_ent' ] / bd[ 'rho' ] * T_conv * bd[ 'mu' ] ]
         for name in fld_extra:
             con_arr.append( bd[ name ] )
             

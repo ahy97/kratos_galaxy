@@ -206,6 +206,14 @@ class background_potential( grid ):
         plt.savefig(f"{filename}.png",dpi=300)
         
     def surround_with_zeros( self, original_array ):
+        """Pad a 2D array with a border of zeros, expanding shape by 2 in each dim.
+
+        Args:
+            original_array (ndarray): Input 2D array.
+
+        Returns:
+            ndarray with shape (N+2, M+2).
+        """
         original_shape = original_array.shape
         N, M = original_shape
         surrounded_array = np.zeros( ( N + 2, M + 2 ) )
@@ -213,6 +221,16 @@ class background_potential( grid ):
         return surrounded_array
     
     def boundaries( self, sten_comp, dens, bcs ):
+        """Apply Neumann and Dirichlet boundary conditions to the FDM stencil.
+
+        Args:
+            sten_comp (dict): Dict of stencil coefficient arrays keyed by (di, dj).
+            dens (ndarray): Source density array, modified in-place.
+            bcs (ndarray): Boundary condition specifiers ('neu'/'dir' per edge).
+
+        Returns:
+            tuple of (sten_comp.values(), dens) with BCs applied.
+        """
         idx_base = [ slice( None ), slice( None ) ]
         stencil_base = [ 0, 0 ]
         neu_inds  = [ 0, -1 ] #indices where neumann BCs are applied - outermost

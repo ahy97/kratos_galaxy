@@ -26,17 +26,42 @@ class source( units ):
         return
     
     def src( self, *args ):
+        """Evaluate the source function in code units.
+
+        Args:
+            *args: Position arguments matching self.dim.
+
+        Returns:
+            data_field with the density value.
+        """
         args_nounit = [ i.to_code( ).data if isinstance( i, data_field ) else i for i in args ]
         return data_field( self.dens( *args_nounit ), self.unit )
     
     def src_cgs( self, *args ):
+        """Evaluate the source function in CGS units.
+
+        Args:
+            *args: Position arguments (auto-converted to code units).
+
+        Returns:
+            data_field in CGS units.
+        """
         args_code = [ i.to_code( ) for i in args ]
         return self.src( *args_code ).to_cgs( )
 
     def dummy( self, *args ):
+        """Placeholder source function returning None."""
         return
 
     def __add__( self, obj ):
+        """Add two source functions, returning a new source.
+
+        Args:
+            obj (source): Source to add.
+
+        Returns:
+            source whose dens is the sum of the two density functions.
+        """
         if self.dummy_flag:
             return obj
         elif obj.dummy_flag:
@@ -56,6 +81,14 @@ class source( units ):
                        unit = self.unit )
 
     def __mul__( self, scalar ):
+        """Multiply source density by a scalar.
+
+        Args:
+            scalar (float): Multiplicative factor.
+
+        Returns:
+            source with scaled density function.
+        """
         if self.dummy_flag:
             return self
         

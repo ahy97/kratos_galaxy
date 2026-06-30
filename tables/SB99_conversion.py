@@ -12,6 +12,17 @@ elements_atomic_weights = elements.elements_atomic_weights
 elements_solar_abundance = elements.elements_solar_abundance
 
 def load_SB99( dirname ):
+    """
+    Load Starburst99 output (yield, snr, power, quanta) and compute feedback rates.
+
+    Args:
+        dirname: path to CGKZ3 output directory
+
+    Returns:
+        data: dict with keys t_par_yr, sne_mass, sne_rate, met_rate,
+              wind_mass_rate, wind_pow_rate, wind_mom_rate, photon_rate.
+              Each value is [log10_flag, array].
+    """
     solarabundances = np.column_stack( ( np.array( list( elements_atomic_numbers .values( ) ) ), 
                                          np.array( list( elements_atomic_weights .values( ) ) ), 
                                          np.array( list( elements_solar_abundance.values( ) ) ) ) )
@@ -39,6 +50,13 @@ def load_SB99( dirname ):
     return data
 
 def write_table_SB99( SB99_data, fname ):
+    """
+    Write SB99 feedback rates as a ConfigParser-formatted table file.
+
+    Args:
+        SB99_data: dict from load_SB99()
+        fname: output file path
+    """
     cfg = ConfigParser(  );
     cfg.optionxform = str;
     cfg[ 'fdbk_rate' ] = \
